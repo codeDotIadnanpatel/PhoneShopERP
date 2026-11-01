@@ -1,0 +1,18 @@
+stateDiagram-v2
+  [*] --> Expected
+  Expected --> Received
+  Received --> Available
+  Available --> Reserved
+  Reserved --> Available: Reservation released/expired
+  Reserved --> Sold: Sale committed
+  Available --> InTransfer
+  InTransfer --> Available: Receiving branch accepts
+  Available --> InRepair
+  InRepair --> Available: Repair completed / quality passed
+  InRepair --> Quarantined: Failed / investigation
+  Sold --> Returned
+  Returned --> Available: Inspected and approved
+  Returned --> Quarantined: Inspection hold
+  Quarantined --> Available: Authorized release
+  Available --> WrittenOff
+  WrittenOff --> [*]

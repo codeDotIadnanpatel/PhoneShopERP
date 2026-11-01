@@ -1,0 +1,15 @@
+sequenceDiagram
+  participant UI as WPF / Flutter
+  participant DB as Local SQLite
+  participant Outbox as Local Outbox
+  participant API as .NET API
+  participant PG as PostgreSQL
+  UI->>DB: Commit local command + projection
+  DB->>Outbox: Persist idempotency key
+  Note over UI,Outbox: User sees Pending Sync, not Cloud Confirmed
+  Outbox->>API: Upload command batch
+  API->>API: Authenticate, authorize, validate, deduplicate
+  API->>PG: Transaction + canonical result
+  PG-->>API: Commit / conflict
+  API-->>Outbox: Accepted / rejected / conflict
+  Outbox->>DB: Reconcile projection and cursor

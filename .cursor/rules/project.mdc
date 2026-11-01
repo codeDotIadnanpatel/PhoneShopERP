@@ -1,0 +1,8 @@
+---
+description: Core project architecture and non-negotiable engineering rules
+alwaysApply: true
+---
+
+Follow `/AGENTS.md`, `/PRODUCT_SPECIFICATION.md`, `/DECISIONS.md` and relevant files in `/docs`.
+
+Keep the API and desktop POS in C#/.NET (WPF). Use Flutter for staff mobile and Next.js/TypeScript for owner web. PostgreSQL is cloud source of truth; encrypted SQLite is local offline store. Use a modular monolith initially. Implement full double-entry accounting and global localization via reviewed jurisdiction packs. Enforce tenant isolation with server-side authorization and PostgreSQL RLS. Offline sync must be idempotent and conflict-aware; never use timestamps alone to resolve IMEI conflicts. Never silently edit posted journals or stock history. Do not store secrets, card data or ordinary device passcodes. Add tests and update traceability/status for every feature.

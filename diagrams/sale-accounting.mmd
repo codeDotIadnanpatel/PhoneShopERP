@@ -1,0 +1,10 @@
+flowchart TD
+  Sale[Sale completed] --> Validate[Validate items, tax, tenders, permissions]
+  Validate --> Stock[Post stock issue / COGS]
+  Validate --> Payment[Allocate tenders / receivable]
+  Validate --> Revenue[Revenue and tax calculation]
+  Stock --> Journal[Balanced journal via posting service]
+  Payment --> Journal
+  Revenue --> Journal
+  Journal --> Audit[Source links + audit + outbox]
+  Audit --> Reports[Financial and operational projections]

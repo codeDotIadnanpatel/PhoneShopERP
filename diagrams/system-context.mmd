@@ -1,0 +1,17 @@
+flowchart LR
+  Owner[Owner / Accountant] --> Web[Next.js Owner Portal]
+  Cashier[Cashier] --> WPF[WPF Desktop POS]
+  Staff[Technician / Floor Staff] --> Flutter[Flutter Staff App]
+  Customer[Customer] --> PWA[Customer Portal / PWA]
+  Web --> API[.NET SaaS API - Modular Monolith]
+  WPF --> Local1[(Encrypted SQLite)]
+  Flutter --> Local2[(Encrypted Local Store)]
+  Local1 <--> Sync[Sync / Outbox]
+  Local2 <--> Sync
+  Sync <--> API
+  Web --> API
+  PWA --> API
+  API --> PG[(PostgreSQL + RLS)]
+  API --> Jobs[Background Jobs / Outbox]
+  Jobs --> Providers[Payment / SMS / Email / Market Data]
+  API --> Files[Private Object Storage]

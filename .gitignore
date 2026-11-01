@@ -1,0 +1,34 @@
+# Build output
+bin/
+obj/
+.dart_tool/
+.flutter-plugins*
+build/
+.next/
+node_modules/
+dist/
+coverage/
+TestResults/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+secrets/
+*.pfx
+*.p12
+*.key
+*.pem
+
+# IDE / OS
+.vs/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local data and diagnostics
+*.db
+*.sqlite
+*.sqlite3
+*.log
