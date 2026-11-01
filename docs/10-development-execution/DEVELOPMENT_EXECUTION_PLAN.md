@@ -3,6 +3,12 @@
 **Status:** Proposed execution baseline  
 **Purpose:** Turn the product specification and release roadmap into an ordered, testable engineering programme. This is a milestone-based plan, not a calendar promise.
 
+## Engineering design prerequisites (v1.2)
+
+Before dependent implementation, review `docs/11-engineering-design/ARCHITECTURE_GATES.md` and the relevant design contracts. The design pack is deliberately conceptual where decisions remain open. Do not generate a production schema, public API or posting rules from illustrative examples without approval.
+
+Each task must identify requirement IDs, owner/module, relevant gate/ADR, data/API/event impact, and Given/When/Then acceptance criteria. A task is not ready when a blocking gate is unresolved.
+
 ## How to use this plan
 
 1. Product, architecture and decision documents remain the source of truth.
@@ -45,6 +51,10 @@ Safe candidates after Phase 01 contracts stabilize: catalogue UI/API, supplier m
 - **Offline:** encrypted local data, stable operation IDs, idempotent retries, explicit conflict handling; timestamps alone are not conflict resolution.
 - **Operations:** logs, metrics, alerts, backups, restore tests, support procedures and user-facing error states are part of delivery.
 - **Globalization:** currency precision, time zones, language and tax rules are configurable; country compliance requires a reviewed jurisdiction pack.
+
+## Task-level acceptance criteria standard
+
+Every task in a phase must have criteria that prove persisted behaviour, not merely a screen or mock response. Include, as relevant: normal flow; invalid input; authorization and cross-tenant denial; duplicate/retry; concurrency; offline conflict; audit; migration; and observable failure recovery. Link each criterion to an automated test ID and requirement ID in `REQUIREMENTS_TRACEABILITY.md`.
 
 ## Definition of Done
 

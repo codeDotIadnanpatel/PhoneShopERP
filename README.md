@@ -22,17 +22,27 @@ This repository documentation is the product and engineering source of truth. Th
 | Cloud database | PostgreSQL with tenant isolation and RLS |
 | Local data | Encrypted SQLite with explicit offline synchronization |
 
+## Specification versions
+
+- **v1.2** adds the implementation-oriented engineering design pack in [`docs/11-engineering-design/`](docs/11-engineering-design/README.md). It supplements the v1.1 execution plan and preserves unresolved decisions as explicit gates.
+- See [`VERSION_HISTORY.md`](VERSION_HISTORY.md) for the change summary.
+
 ## Start here
+
+**For a single-file briefing, start with [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md).** It explains the product, scope, approved technology and architecture, current status, mandatory rules, phase sequence, and exactly which files an AI assistant must read before beginning. It is the orientation document; detailed specifications and live status registers remain authoritative for their respective subjects.
+
 
 For detailed engineering sequencing, task breakdowns, dependencies, acceptance criteria and AI-agent guidance, see [`docs/10-development-execution/DEVELOPMENT_EXECUTION_PLAN.md`](docs/10-development-execution/DEVELOPMENT_EXECUTION_PLAN.md). It supplements, and does not replace, the product roadmap and approved architecture.
 
 
 1. Read [`docs/00-product-foundation/PRODUCT_VISION.md`](docs/00-product-foundation/PRODUCT_VISION.md).
-2. Read [`docs/01-architecture/ARCHITECTURE_OVERVIEW.md`](docs/01-architecture/ARCHITECTURE_OVERVIEW.md).
-3. Read [`docs/05-security-and-compliance/SECURITY_BASELINE.md`](docs/05-security-and-compliance/SECURITY_BASELINE.md).
-4. Read [`docs/01-architecture/OFFLINE_AND_SYNC.md`](docs/01-architecture/OFFLINE_AND_SYNC.md) before implementing any offline-capable feature.
-5. Read the relevant module specification before coding.
-6. Update `IMPLEMENTATION_STATUS.md`, `REQUIREMENTS_TRACEABILITY.md`, and `DECISIONS.md` as work progresses.
+2. Read [`docs/11-engineering-design/ARCHITECTURE_GATES.md`](docs/11-engineering-design/ARCHITECTURE_GATES.md) and resolve gates before dependent implementation.
+3. Read [`docs/01-architecture/ARCHITECTURE_OVERVIEW.md`](docs/01-architecture/ARCHITECTURE_OVERVIEW.md).
+4. For implementation detail, use [`docs/11-engineering-design/`](docs/11-engineering-design/README.md).
+5. Read [`docs/05-security-and-compliance/SECURITY_BASELINE.md`](docs/05-security-and-compliance/SECURITY_BASELINE.md).
+6. Read [`docs/01-architecture/OFFLINE_AND_SYNC.md`](docs/01-architecture/OFFLINE_AND_SYNC.md) and the engineering sync protocol before implementing offline writes.
+7. Read the relevant module specification before coding.
+8. Update `IMPLEMENTATION_STATUS.md`, `REQUIREMENTS_TRACEABILITY.md`, and `DECISIONS.md` as work progresses.
 
 ## Repository principles
 

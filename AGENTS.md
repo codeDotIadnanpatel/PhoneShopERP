@@ -2,7 +2,10 @@
 
 This file is the vendor-neutral entry point for AI coding agents.
 
-Before work, read:
+Before work, read (in this order):
+- `PROJECT_CONTEXT.md` — canonical project briefing, status interpretation and reading map.
+- `docs/11-engineering-design/README.md`
+- The applicable architecture gate and engineering design contract (database, API, accounting, offline, security, NFR, hardware or migration).
 - `README.md`
 - `PRODUCT_SPECIFICATION.md`
 - `DECISIONS.md`
@@ -31,3 +34,12 @@ For every implementation:
 4. Add automated tests for normal, failure, authorization, duplicate/retry and offline cases as relevant.
 5. Update documentation, traceability and implementation status.
 6. Report tests run, migration impact and known limitations.
+
+
+Engineering-design rules:
+- Treat `docs/11-engineering-design/` as an implementation design baseline, not a final physical schema or legal/accounting opinion.
+- Do not promote illustrative API/JSON/journal examples into production contracts without review and tests.
+- Resolve relevant `AG-xx` architecture gates and record ADRs before dependent implementation.
+- Every task must have task-level acceptance criteria and traceability to requirement/test IDs.
+- Preserve the distinction between serialized devices, bulk stock, ownership, custody, location, availability and condition.
+- Offline capability never implies guaranteed global exclusivity; follow the approved conflict policy.

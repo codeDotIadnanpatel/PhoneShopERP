@@ -7,6 +7,10 @@ Repository: Smartphone Shop SaaS ERP
 Task ID: [Pnn-Wnn-Tnn]
 Task title: [short title]
 Expected observable outcome: [result]
+Requirement IDs: [e.g. INV-001, ENG-002]
+Architecture gates / ADRs: [IDs and status]
+API contract / event: [link or N/A]
+Data entities / migration: [link or N/A]
 In scope: [specific behaviour/modules]
 Out of scope: [exclusions]
 
@@ -27,6 +31,15 @@ Implementation rules:
 - Do not store secrets, raw card data or device unlock passcodes.
 - Do not implement unrelated features or silently change architecture.
 
+Task-specific acceptance criteria (must be observable and testable):
+- [ ] Given [precondition], when [action], then [expected persisted/business result].
+- [ ] Invalid input returns the documented error code and causes no partial mutation.
+- [ ] Unauthorized and cross-tenant attempts are rejected and audited as required.
+- [ ] Duplicate/retry produces no duplicate stock, payment or journal effect.
+- [ ] Concurrency/version conflict follows the approved domain policy.
+- [ ] Offline behaviour follows the approved command allowlist and conflict policy.
+- [ ] Migration, telemetry, audit and documentation evidence is present where applicable.
+
 Testing: add normal, invalid, unauthorized, cross-tenant, duplicate/retry, concurrency and offline tests as applicable. Run relevant build, lint, unit, integration and contract checks.
 
 Completion report: summary, files changed, migrations/data impact, API/events changed, tests and exact results, security/accounting/inventory/offline considerations, limitations, unresolved decisions, docs updated, and whether acceptance criteria are met.
@@ -36,3 +49,6 @@ Do not claim completion if required behaviour is missing or tests fail.
 ## Task sizing
 
 Prefer one domain rule/state transition, one endpoint with tests, one migration with associated repository changes, or one UI flow consuming an agreed API. Avoid assigning an entire ERP module or platform in one prompt.
+
+
+Do not begin implementation if a required architecture gate is unresolved and the task could create irreversible schema, accounting, security or offline behaviour. Escalate the decision with options and impact instead.

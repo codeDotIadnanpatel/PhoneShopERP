@@ -93,3 +93,8 @@ Total generated files: 73
 - [`docs/10-development-execution/PHASE_09_FINANCIAL_GLOBAL.md`](10-development-execution/PHASE_09_FINANCIAL_GLOBAL.md)
 - [`docs/10-development-execution/PHASE_10_PRODUCTION_LAUNCH.md`](10-development-execution/PHASE_10_PRODUCTION_LAUNCH.md)
 - [`docs/10-development-execution/PHASE_TRACKER.md`](10-development-execution/PHASE_TRACKER.md)
+
+
+## Engineering design (v1.2)
+
+See [`11-engineering-design/README.md`](11-engineering-design/README.md) for the implementation-oriented data, API, accounting, offline, security, NFR, hardware and migration design pack.
