@@ -24,6 +24,9 @@ This repository documentation is the product and engineering source of truth. Th
 
 ## Start here
 
+For detailed engineering sequencing, task breakdowns, dependencies, acceptance criteria and AI-agent guidance, see [`docs/10-development-execution/DEVELOPMENT_EXECUTION_PLAN.md`](docs/10-development-execution/DEVELOPMENT_EXECUTION_PLAN.md). It supplements, and does not replace, the product roadmap and approved architecture.
+
+
 1. Read [`docs/00-product-foundation/PRODUCT_VISION.md`](docs/00-product-foundation/PRODUCT_VISION.md).
 2. Read [`docs/01-architecture/ARCHITECTURE_OVERVIEW.md`](docs/01-architecture/ARCHITECTURE_OVERVIEW.md).
 3. Read [`docs/05-security-and-compliance/SECURITY_BASELINE.md`](docs/05-security-and-compliance/SECURITY_BASELINE.md).

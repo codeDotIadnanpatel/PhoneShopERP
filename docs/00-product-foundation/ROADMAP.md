@@ -19,3 +19,7 @@ Country compliance packs, additional payment/tax integrations, multi-entity cons
 
 ## Release gates
 Each release requires data migration plan, security review, accounting validation, offline test coverage, support documentation, monitoring dashboards and rollback plan.
+
+## Detailed engineering execution
+
+This roadmap defines release-level product sequencing. Detailed engineering tasks, dependencies, verification requirements and AI-agent workflow are maintained in [`../10-development-execution/DEVELOPMENT_EXECUTION_PLAN.md`](../10-development-execution/DEVELOPMENT_EXECUTION_PLAN.md), subordinate to this roadmap and approved decisions.

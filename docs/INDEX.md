@@ -75,3 +75,21 @@ Total generated files: 73
 - [`docs/09-operations/DEPLOYMENT_AND_ENVIRONMENTS.md`](docs/09-operations/DEPLOYMENT_AND_ENVIRONMENTS.md)
 - [`docs/09-operations/OBSERVABILITY_AND_SUPPORT.md`](docs/09-operations/OBSERVABILITY_AND_SUPPORT.md)
 - [`docs/09-operations/RELEASE_AND_MIGRATION.md`](docs/09-operations/RELEASE_AND_MIGRATION.md)
+
+## Development execution
+
+- [`docs/10-development-execution/AI_TASK_PROMPT_TEMPLATE.md`](10-development-execution/AI_TASK_PROMPT_TEMPLATE.md)
+- [`docs/10-development-execution/DEPENDENCY_MAP.md`](10-development-execution/DEPENDENCY_MAP.md)
+- [`docs/10-development-execution/DEVELOPMENT_EXECUTION_PLAN.md`](10-development-execution/DEVELOPMENT_EXECUTION_PLAN.md)
+- [`docs/10-development-execution/PHASE_00_PROJECT_PREPARATION.md`](10-development-execution/PHASE_00_PROJECT_PREPARATION.md)
+- [`docs/10-development-execution/PHASE_01_PLATFORM_FOUNDATION.md`](10-development-execution/PHASE_01_PLATFORM_FOUNDATION.md)
+- [`docs/10-development-execution/PHASE_02_PRODUCTS_INVENTORY.md`](10-development-execution/PHASE_02_PRODUCTS_INVENTORY.md)
+- [`docs/10-development-execution/PHASE_03_PURCHASING.md`](10-development-execution/PHASE_03_PURCHASING.md)
+- [`docs/10-development-execution/PHASE_04_POS_RETAIL.md`](10-development-execution/PHASE_04_POS_RETAIL.md)
+- [`docs/10-development-execution/PHASE_05_ACCOUNTING_FOUNDATION.md`](10-development-execution/PHASE_05_ACCOUNTING_FOUNDATION.md)
+- [`docs/10-development-execution/PHASE_06_ADVANCED_OPERATIONS.md`](10-development-execution/PHASE_06_ADVANCED_OPERATIONS.md)
+- [`docs/10-development-execution/PHASE_07_MULTI_BRANCH_MOBILE.md`](10-development-execution/PHASE_07_MULTI_BRANCH_MOBILE.md)
+- [`docs/10-development-execution/PHASE_08_CUSTOMER_MANAGEMENT.md`](10-development-execution/PHASE_08_CUSTOMER_MANAGEMENT.md)
+- [`docs/10-development-execution/PHASE_09_FINANCIAL_GLOBAL.md`](10-development-execution/PHASE_09_FINANCIAL_GLOBAL.md)
+- [`docs/10-development-execution/PHASE_10_PRODUCTION_LAUNCH.md`](10-development-execution/PHASE_10_PRODUCTION_LAUNCH.md)
+- [`docs/10-development-execution/PHASE_TRACKER.md`](10-development-execution/PHASE_TRACKER.md)
