@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>PhoneShopErp.Modules.IdentityAccess.Application</RootNamespace>
+    <AssemblyName>PhoneShopErp.Modules.IdentityAccess.Application</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\PhoneShopErp.Platform\PhoneShopErp.Platform.csproj" />
+  </ItemGroup>
+
+</Project>

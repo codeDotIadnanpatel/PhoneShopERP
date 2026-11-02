@@ -1,7 +1,8 @@
 # Phase 01 — Platform foundation
 
 **Phase ID:** `P01`  
-**Status:** Not started  
+**Status:** In progress — authorised 2026-11-03 (D-001/D-002/D-003 accepted; ADR-0012–ADR-0015).
+Implementation follows `PHASE_01_IMPLEMENTATION_BACKLOG.md` work packages `WP01`…`WP12`.
 **Objective:** Deliver a secure, observable, tenant-aware platform.
 
 ## Scope and work packages

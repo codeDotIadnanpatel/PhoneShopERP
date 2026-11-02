@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>PhoneShopErp.Modules.SaasPlatform.Application</RootNamespace>
+    <AssemblyName>PhoneShopErp.Modules.SaasPlatform.Application</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\\..\\..\\PhoneShopErp.Platform\\PhoneShopErp.Platform.csproj" />
+  </ItemGroup>
+
+</Project>

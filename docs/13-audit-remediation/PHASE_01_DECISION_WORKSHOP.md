@@ -5,8 +5,11 @@ foundational decisions in one session, and to start Phase 01 immediately afterwa
 **Date:** 2026-11-02
 **Inputs:** `PHASE_00_BRANCH_REVIEW.md` (findings `DP-01`…`DP-15`), the three decision papers at
 **revision 2**, `DECISION_REGISTER.md`, `PHASE_01_PLATFORM_FOUNDATION.md`.
-**Status:** all three decisions remain **`PROPOSED — NOT APPROVED`**. This document does not
-approve anything and does not authorise implementation.
+**Status:** **decided.** The project owner authorised D-003, D-001 and D-002 on 2026-11-03 with
+the amendments recorded in `DECISIONS.md` (ADR-0012, ADR-0013, ADR-0014) and ADR-0015 (support
+access). This document is retained as the review record; §9 now records the outcome rather than
+requesting a decision. D-002's production identity provider remains pending selection, which does
+not block Phase 01 implementation.
 
 ---
 
@@ -233,26 +236,39 @@ architect is needed to approve the design.
 - Naming of indexes/triggers, UUID validation details, log field names.
 - Which tenant-extensible reference tables are seeded at provisioning versus configured later.
 
-## 9. Approval sheet
+## 9. Approval outcome (recorded 2026-11-03)
 
-Copy this into the decision papers or `DECISIONS.md` when you decide. Exact recommended wording:
+The project owner authorised the three decisions with amendments. The exact wording is in
+`DECISIONS.md`:
 
 ```
-D-003 — Approved as revision 2 (2026-11-02), without amendment.
-D-001 — Approved as revision 2 (2026-11-02), without amendment.
-D-002 — Approved as revision 2 (2026-11-02) at approach level.
-         Vendor selection delegated to: <role/name>, deadline <date>,
-         with a per-active-user cost ceiling of <amount>.
-Support access — Audited erp_platform_admin access only for Phase 01;
-         tenant-visible consent-based impersonation deferred to D-015/D-016.
+D-003 — Approved with amendments (2026-11-03). ADR-0014.
+        Cross-module foreign keys permitted with explicit review; UUIDs are
+        identifiers, not authorisation; DbUp migration runner.
+D-001 — Approved with amendments (2026-11-03). ADR-0012.
+        RLS is defence in depth, not a substitute for secure code; transaction-local
+        context only; audited platform-admin support access only; no per-tenant
+        database/schema/role at launch.
+D-002 — Approved with amendments (2026-11-03). ADR-0013.
+        Provider owns the refresh-token lifecycle; no parallel ERP token system;
+        BFF/system-browser/secure-storage client model; local OIDC provider now,
+        production provider pending selection.
+Support access — Audited erp_platform_admin only (ADR-0015); consent-based
+        impersonation deferred.
 Dedicated database tier — Not required for launch.
-Session lifetimes / MFA classes — Accept D-002 R4/R6 defaults.
+Session lifetimes / MFA classes — Access token 10 minutes (5–15 configurable);
+        MFA mandatory for platform admins, tenant owners and high-risk permissions.
 ```
 
-Approver role, name, date and evidence reference are required for each entry. An AI agent cannot
-fill these in.
+Authority came from the project owner's written instruction dated 2026-11-03, delegating technical
+architecture authority. This is an internal architecture approval, not an external security audit.
 
-## 10. Risks of proceeding, and how revision 2 reduces them
+Still open and therefore **not invented** during implementation: production identity provider,
+per-user cost ceiling, data-residency requirement (D-009), approval thresholds (D-011),
+entitlement/grace values (D-014), retention periods (D-016), money precision (AG-04) and quantity
+precision (AG-06).
+
+## 10. Risks of proceeding, and how the approved design reduces them
 
 | Risk | Effect if unmanaged | Mitigation now in the papers |
 |---|---|---|
@@ -271,8 +287,9 @@ three tasks need no further decisions:
 
 1. **P01-WP01** — migration runner, roles, schemas, helper functions, clean-database CI job.
 2. **P01-WP02** — global reference data and the schema-convention lint.
-3. **P01-WP03** — tenant lifecycle and onboarding skeleton.
+3. **P01-WP11** — API standards, idempotency and health (pulled early because later packages
+   depend on its error envelope, correlation id and health endpoints).
 
-Identity work (P01-WP06) starts once the vendor is selected or the local OIDC test provider is
-chosen. Nothing in the backlog implements a business module, and no accounting or stock behaviour
-is in scope.
+Identity work (P01-WP06) proceeds against a local OIDC test provider; the production provider
+remains pending selection. Nothing in the backlog implements a business module, and no accounting
+or stock behaviour is in scope.

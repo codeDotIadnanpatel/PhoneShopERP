@@ -11,12 +11,23 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!--
-      No project references yet. Modules are added here only after their owning
-      phase starts and the relevant architecture gate (AG-01, AG-02, ...) is
-      approved. See backend/README.md and
-      docs/01-architecture/MODULAR_BOUNDARIES.md.
+      Project references are added only with the approving decision/gate recorded:
+        PhoneShopErp.Platform                      AG-01/AG-02/AG-03 (ADR-0012..0015)
+        PhoneShopErp.Persistence                  AG-01 (ADR-0012, ADR-0014)
+        PhoneShopErp.Modules.Tenancy.*            AG-01 (ADR-0012)
+        PhoneShopErp.Modules.IdentityAccess.*     AG-02 (ADR-0013)
+        PhoneShopErp.Modules.SaasPlatform.*       P01-WP09 (entitlement shape, D-014 values pending)
     -->
+    <ProjectReference Include="..\PhoneShopErp.Platform\PhoneShopErp.Platform.csproj" />
+    <ProjectReference Include="..\PhoneShopErp.Persistence\PhoneShopErp.Persistence.csproj" />
+    <ProjectReference Include="..\Modules\Tenancy\PhoneShopErp.Modules.Tenancy.Infrastructure\PhoneShopErp.Modules.Tenancy.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\IdentityAccess\PhoneShopErp.Modules.IdentityAccess.Infrastructure\PhoneShopErp.Modules.IdentityAccess.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\SaasPlatform\PhoneShopErp.Modules.SaasPlatform.Infrastructure\PhoneShopErp.Modules.SaasPlatform.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

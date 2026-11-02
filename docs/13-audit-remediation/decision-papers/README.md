@@ -1,8 +1,11 @@
 # Decision Papers — Phase 00
 
-**Status:** working papers only. Every paper here is **`PROPOSED — NOT APPROVED`**. None of them
-is a decision, an ADR, a schema or a policy. No production schema, migration, identity flow or
-tenant code may be written from a working paper.
+**Status:** D-001, D-002 and D-003 were authorised by the project owner on 2026-11-03, with the
+amendments recorded in `DECISIONS.md` (ADR-0012, ADR-0013, ADR-0014) and in each paper's
+authorisation section. The papers remain the full option analysis and implementation reference.
+D-002's production identity provider is explicitly pending selection; development proceeds
+against a local OIDC test provider. These are internal architecture approvals, not an external
+security audit.
 
 **Purpose:** give a named approver everything needed to accept, amend or reject a decision from
 `../DECISION_REGISTER.md` without re-deriving the analysis. A paper is an input to a decision,
@@ -10,29 +13,29 @@ not a substitute for one.
 
 ## Papers in this folder
 
-| Paper | Register item | Related gate | Unblocks | Status | Suggested ADR |
+| Paper | Register item | Related gate | Unblocks | Status | ADR |
 |---|---|---|---|---|---|
-| [`D-001-tenant-context-and-rls.md`](D-001-tenant-context-and-rls.md) | D-001 Tenant context and RLS session propagation | AG-01 | `FS-001`, `FS-003`, every tenant-owned table | Revision 2 — proposed, not approved | ADR-0012 |
-| [`D-002-identity-and-session-lifecycle.md`](D-002-identity-and-session-lifecycle.md) | D-002 Identity and session lifecycle | AG-02 | `FS-002`, authenticated slice, offline login design | Revision 2 — proposed, not approved | ADR-0013 |
-| [`D-003-physical-database-conventions.md`](D-003-physical-database-conventions.md) | D-003 Physical database conventions | AG-01, AG-03 | First migration, `FS-003`–`FS-008` | Revision 2 — proposed, not approved | ADR-0014 |
+| [`D-001-tenant-context-and-rls.md`](D-001-tenant-context-and-rls.md) | D-001 Tenant context and RLS session propagation | AG-01 | `FS-001`, `FS-003`, every tenant-owned table | Accepted 2026-11-03 | ADR-0012 |
+| [`D-002-identity-and-session-lifecycle.md`](D-002-identity-and-session-lifecycle.md) | D-002 Identity and session lifecycle | AG-02 | `FS-002`, authenticated slice, offline login design | Accepted 2026-11-03; provider pending | ADR-0013 |
+| [`D-003-physical-database-conventions.md`](D-003-physical-database-conventions.md) | D-003 Physical database conventions | AG-01, AG-03 | First migration, `FS-003`–`FS-008` | Accepted 2026-11-03 | ADR-0014 |
 
-ADR numbers are **reserved suggestions**, not allocated. Confirm against `DECISIONS.md` before
-use; the two papers that follow may shift the numbering.
+ADR-0012, ADR-0013 and ADR-0014 are recorded in `DECISIONS.md`. ADR-0015 records the support
+access model. The identifiers are allocated, not merely reserved suggestions.
 
-Revision 2 (2026-11-02) resolves the fifteen review findings `DP-01` … `DP-15` **inside the
-papers**. It does not approve them. Each paper ends with a change log listing what changed, and
-the three now describe the same roles, schemas, UUID ownership rules, tenant-context mechanism
-and audit boundary.
+Revision 2 (2026-11-02) resolved the fifteen review findings `DP-01` … `DP-15` **inside the
+papers**. Revision 3 (2026-11-03) records the owner's authorisation amendments. Each paper ends
+with a change log; the three describe the same roles, schemas, UUID ownership rules,
+tenant-context mechanism and audit boundary.
 
 ## Decision workshop
 
-[`../PHASE_01_DECISION_WORKSHOP.md`](../PHASE_01_DECISION_WORKSHOP.md) is the single review entry
-point:
+[`../PHASE_01_DECISION_WORKSHOP.md`](../PHASE_01_DECISION_WORKSHOP.md) was the review entry
+point before approval:
 
 - plain-English resolution of every `DP-xx` finding with cost and dependency notes;
 - the one architecture the three papers now describe (table in §4);
 - per-decision question, recommendation, alternatives, consequences and specialist-review need;
-- a split between the four items that need approver sign-off and the technical choices the
+- a split between the items requiring approver sign-off and the technical choices the
   engineering team owns;
 - an approval sheet with exact wording and the first implementation tasks after approval.
 
@@ -41,12 +44,12 @@ point:
 An independent review of the earlier paper revisions is recorded in
 [`../PHASE_00_BRANCH_REVIEW.md`](../PHASE_00_BRANCH_REVIEW.md) §3.3. It logs fifteen defect
 entries, `DP-01` … `DP-15`. All fifteen are addressed in revision 2 with a traceable change log
-at the end of each paper. Read the review register and the workshop together before the approval
-session.
+at the end of each paper. Read the review register and the workshop together for the reasoning
+behind the accepted architecture.
 
-The findings do **not** change any paper's status. Every paper remains
-`PROPOSED — NOT APPROVED`, and no migration, schema or identity flow may be written until an
-authorised human approver records the outcome.
+The historical review and completion-checklist texts still describe the papers as proposed
+because they record the state at the time of review. The live status is the approval record in
+each paper, `DECISION_REGISTER.md` and `DECISIONS.md`.
 
 ## Suggested approval order
 

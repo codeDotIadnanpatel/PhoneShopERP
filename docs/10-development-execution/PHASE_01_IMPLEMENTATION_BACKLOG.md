@@ -1,10 +1,14 @@
 # Phase 01 — Implementation Backlog (Platform Foundation)
 
-> **Status: PLANNING ONLY — BLOCKED UNTIL D-003, D-001, D-002 ARE APPROVED.**
-> Nothing in this backlog authorises code, schema, migration or configuration. It is the
-> implementation sequence that becomes executable **after** the approvals listed in
-> [`../13-audit-remediation/PHASE_01_DECISION_WORKSHOP.md`](../13-audit-remediation/PHASE_01_DECISION_WORKSHOP.md)
-> §9 are recorded. Decision references (`D-00x`) point to proposals, not to approved decisions.
+> **Status: AUTHORISED — IMPLEMENTATION IN PROGRESS (2026-11-03).**
+> D-003, D-001 and D-002 were approved by the project owner on 2026-11-03 (ADR-0012, ADR-0013,
+> ADR-0014) and the support-access model is ADR-0015. This backlog is the authoritative
+> implementation sequence. `WP01`…`WP12` may be implemented in dependency order; a package is
+> `Done` only when its acceptance criteria have linked evidence.
+>
+> Still open and **not** to be invented: D-011 approval thresholds, D-014 entitlement/grace
+> values, D-016 retention periods, D-009 launch jurisdiction, AG-04 money precision, AG-06
+> quantity precision, and the D-002 production identity provider.
 
 **Phase:** `P01` — Platform foundation
 **Parent scope:** [`PHASE_01_PLATFORM_FOUNDATION.md`](PHASE_01_PLATFORM_FOUNDATION.md) (`P01-W01`…`P01-W06`)
@@ -33,11 +37,11 @@ observability and migration pipeline verified (`../12-engineering-readiness/RELE
 
 | Gate / decision | Status | Blocks | Notes |
 |---|---|---|---|
-| D-003 Physical database conventions (rev 2) | Proposed — not approved | `WP01`, `WP02`, every schema work package | Names, keys, types, roles, migration mechanics |
-| D-001 Tenant context and RLS (rev 2) | Proposed — not approved | `WP01`, `WP03`, `WP05` | Context helpers, roles, RLS policies, membership bootstrap |
-| D-002 Identity and session lifecycle (rev 2) | Proposed — not approved | `WP06`, `WP07` | OIDC adapter, sessions, permission resolution |
-| Support access model | Proposed default (audited platform admin) | `WP05`, `WP08` | Changes audit/consent schema if consent-based is chosen |
-| IdP vendor + cost ceiling + residency | Undecided | `WP06` production path | `WP06` can start against a local OIDC test provider |
+| D-003 Physical database conventions | **Approved 2026-11-03** (ADR-0014) | `WP01`, `WP02`, every schema work package | Names, keys, types, roles, migration mechanics |
+| D-001 Tenant context and RLS | **Approved 2026-11-03** (ADR-0012) | `WP01`, `WP03`, `WP05` | Context helpers, roles, RLS policies, membership bootstrap |
+| D-002 Identity and session lifecycle | **Approved 2026-11-03** (ADR-0013); provider pending | `WP06`, `WP07` | OIDC adapter, sessions, permission resolution |
+| Support access model | **Approved 2026-11-03** (ADR-0015; audited platform admin) | `WP05`, `WP08` | No consent-based impersonation at launch |
+| IdP vendor + cost ceiling + residency | Pending selection (does not block `WP06`) | `WP06` production path | `WP06` proceeds against a local OIDC test provider |
 | D-011 Approval thresholds | Open | Only the threshold parts of `WP07`; not the catalogue | High-risk classification can proceed without thresholds |
 | D-014 SaaS entitlement/grace | Open | `WP09` policy values | Table shape and lifecycle states can proceed; enforcement values cannot |
 | D-016 Retention/privacy | Open | Audit/session retention values in `WP08`/`WP06` | Retention *mechanics* only, no retention periods |

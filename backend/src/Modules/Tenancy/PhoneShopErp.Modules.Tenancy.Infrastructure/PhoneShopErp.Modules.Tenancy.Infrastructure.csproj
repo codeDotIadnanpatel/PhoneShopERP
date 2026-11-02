@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>PhoneShopErp.Modules.Tenancy.Infrastructure</RootNamespace>
+    <AssemblyName>PhoneShopErp.Modules.Tenancy.Infrastructure</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PhoneShopErp.Modules.Tenancy.Application\PhoneShopErp.Modules.Tenancy.Application.csproj" />
+    <ProjectReference Include="..\..\PhoneShopErp.Persistence\PhoneShopErp.Persistence.csproj" />
+  </ItemGroup>
+
+</Project>

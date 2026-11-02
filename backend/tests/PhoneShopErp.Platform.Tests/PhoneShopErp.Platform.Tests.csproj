@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>PhoneShopErp.Platform.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- Descriptive test names use underscores by convention; this is a test-only deviation. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\PhoneShopErp.Modules.Tenancy.Application\PhoneShopErp.Modules.Tenancy.Application.csproj" />
+    <ProjectReference Include="..\..\src\PhoneShopErp.Modules.IdentityAccess.Application\PhoneShopErp.Modules.IdentityAccess.Application.csproj" />
+    <ProjectReference Include="..\..\src\PhoneShopErp.Modules.SaasPlatform.Application\PhoneShopErp.Modules.SaasPlatform.Application.csproj" />
+    <ProjectReference Include="..\..\src\PhoneShopErp.Platform\PhoneShopErp.Platform.csproj" />
+  </ItemGroup>
+
+</Project>

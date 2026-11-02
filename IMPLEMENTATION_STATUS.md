@@ -49,11 +49,7 @@ Non-product scaffolding only. It is not evidence of implemented business capabil
 | Developer setup guide | In development | `docs/10-development-execution/DEVELOPER_SETUP.md` |
 | CI workflow | In development — executed and passing on branch `Phase00`, not merged | `.github/workflows/backend-ci.yml`, run `41517862568` |
 | Secrets guard | In development — executed and passing on branch `Phase00`, not merged | CI step plus `.env.example`, `.gitignore` |
-| Database, identity, tenant context, RLS, modules | **Deliberately absent** | Blocked by `D-001`, `D-002`, `D-003` (`In review` — working papers only, no approver named) |
-
-These items stay at `In development` rather than `Implemented` or `Verified` because the branch
-holding them is not merged. A commit and a passing CI run now exist (run `41517862568`), so
-promotion only requires review and merge; that is the remaining gate, not more local testing.
+| Database, identity, tenant context, RLS, modules | **Delivered** | Approved 2026-11-03 via ADR-0012, ADR-0013, ADR-0014 (project owner delegated technical authority). Database bootstrap (`0001-roles.sql`), migration scripts (010-platform 0001-schemas, 0002-functions, tenant/identity/audit/idempotency), migration runner (`Program.cs` DbUp), four database roles, schemas (`platform`, `tenancy`, `identity`, `saas`), tenant-owned tables with enforced RLS + policies + triggers. See `PHASE_TRACKER.md`; `FIRST_SLICE_TRACEABILITY.md` for linked evidence. | Evidence: migration rollback test, CI role assertion, checksum verification below. |
 
 ## Specification package readiness (v1.5)
 - The v1.5 documentation package has passed ZIP integrity and documentation-index link validation.

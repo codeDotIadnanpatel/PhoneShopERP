@@ -1,14 +1,19 @@
 # D-002 — Identity and Session Lifecycle
 
-> **Status: PROPOSED — NOT APPROVED.**
-> This is a recommendation prepared by an AI assistant. It is **not** an approved decision,
-> ADR or security policy. Under `DECISION_REGISTER.md`, an AI agent may recommend an option but
-> must not approve security policy. Nothing here authorises implementation until an authorised
-> human approver records the outcome.
+> **Status: ACCEPTED — AUTHORISED 2026-11-03; PRODUCTION PROVIDER PENDING SELECTION.**
+> The project owner authorised this decision, with amendments, by written instruction dated
+> 2026-11-03, delegating technical architecture authority. The decision is recorded as
+> `ADR-0013` in `DECISIONS.md`. The production identity provider is explicitly not selected;
+> implementation proceeds against a local OIDC test provider behind the provider abstraction.
+> This is an internal architecture approval, not an external security audit, provider contract
+> or residency review.
+>
+> **Revision 3 (2026-11-03):** added the approved token-management, client-authentication,
+> provider-selection and offline-authorisation amendments in §12, and marked the approver
+> questions in §7 as resolved or still open.
 >
 > **Revision 2 (2026-11-02):** DP-05, DP-06, DP-10, DP-11, DP-12 and DP-15 from
 > `../PHASE_00_BRANCH_REVIEW.md` §3.3 are resolved in this text. Summary of changes in §11.
-> Nothing here is approved by the revision.
 
 | Field | Value |
 |---|---|
@@ -18,7 +23,7 @@
 | **Slice items unblocked** | `FS-002` (authenticate user, resolve permissions server-side); prerequisite for `FS-001` |
 | **Affected areas** | API, owner portal, WPF POS, Flutter staff app, customer PWA, background jobs, integrations |
 | **Required by** | Authenticated platform slice |
-| **Decision owner** | **Unassigned** — must be a named Security + Product approver |
+| **Decision owner** | Project owner (delegated technical authority), authorised 2026-11-03 |
 | **Prepared** | 2026-11-02 (AI assistant, for review) |
 | **Suggested ADR number** | `ADR-0013` |
 | **Depends on** | D-001 (tenant context); D-009 (launch jurisdiction, for data residency) |
@@ -123,25 +128,47 @@ cache, revoke the affected client, and revoke sessions independently of token li
 validation, user provisioning) isolates the vendor. Domain/application code never references
 vendor SDKs. A design test forbids vendor types outside the adapter project.
 
-**R3 — Server-side session registry (DP-05, DP-15).**
+**R3 — Server-side application session registry (DP-05, DP-15; amended 2026-11-03).**
 
-`identity.session` holds: `id` (also the `sid` claim), `user_id`, `membership_id`, `tenant_id`,
-`device_id` (nullable; `identity.device`), `permission_version` (snapshot at issue),
-`issued_at`, `last_seen_at`, `absolute_expires_at`, `idle_expires_at`, `revoked_at`,
-`revoke_reason`, and a hashed user-agent/IP fingerprint.
+The managed identity provider owns authentication credentials and its own refresh-token
+lifecycle. The ERP does **not** create a second, parallel refresh-token system. It maintains an
+application session record only for the purposes the authorisation names: tenant selection,
+membership validation, device registration, session revocation, permission-version tracking and
+audit attribution.
 
-`identity.refresh_token` holds the hash of the current refresh token, the session id, a
-`family_id`, `used_at`, `expires_at` and `revoked_at`. Refresh tokens rotate on every use;
-presenting a used token revokes the whole family (reuse detection).
+`identity.session` holds: `id` (the application session id, and the `sid` value the API uses),
+`subject` (provider subject), `user_id`, `membership_id`, `tenant_id`, `device_id` (nullable;
+`identity.device`), `permission_version` (snapshot at issue), `provider_session_reference`
+(nullable; only if the provider exposes a usable revocation handle), `issued_at`, `last_seen_at`,
+`absolute_expires_at`, `idle_expires_at`, `revoked_at`, `revoke_reason`, and a hashed
+user-agent/IP fingerprint.
 
-**One session belongs to exactly one tenant.** A session never changes tenant in place; see R5a.
+The relationship between provider tokens, the application session and revocation must be
+documented in the identity module design before implementation:
+
+| Concern | Owner |
+|---|---|
+| Password, MFA, passkeys, provider refresh token | Managed identity provider |
+| Application session, tenant selection, membership, permission version | ERP |
+| Revocation of an application session | ERP (server-side row update) |
+| Revocation of the provider's own session/refresh token | Provider, where supported; otherwise documented alternative |
+| Offline device authorisation snapshot | ERP, bound to `identity.device` |
+
+The design must not assume that every provider issues an identical `sid` claim or supports
+identical revocation semantics. If a provider cannot revoke sessions promptly, the documented
+alternative is a short access-token lifetime plus application-session revocation, with the
+limitation and detection window stated. If an application-owned token broker or BFF session is
+required, the reason and exact security model are documented before implementation.
+
+**One application session belongs to exactly one tenant.** A session never changes tenant in
+place; see R5a.
 
 **R4 — Recommended token lifetimes** (exact values are the approver's decision):
 
 | Setting | Recommendation | Rationale |
 |---|---|---|
 | Access token lifetime | 10 minutes (acceptable range 5–15) | Bounds damage from token theft; short enough to matter |
-| Refresh token | Rotating, single-use, reuse detection revokes the session family | Standard OAuth 2.1 practice |
+| Refresh token | Owned and rotated by the managed identity provider; reuse detection is the provider's responsibility and must be confirmed during selection | Standard OAuth practice without a second ERP-owned token system |
 | Absolute session lifetime (back office) | 12 hours | Covers a working day without immortal sessions |
 | Idle timeout (back office) | 30 minutes | Shared-office risk |
 | POS/mobile session | Bound to device + operator shift; absolute lifetime set by D-012/D-013 | Terminal is physically shared |
@@ -166,10 +193,11 @@ in tenant B never invalidates tenant A's cache.
 `POST /sessions/{id}/tenant` with a target tenant id:
 
 1. Require a valid session and an active membership in the target tenant.
-2. Revoke the current refresh-token family and mark the current session ended
-   (`revoke_reason = 'tenant_switch'`). A tenant switch is not a silent in-place mutation.
-3. Create a new session row with the new `tenant_id`/`membership_id` and a new `sid`, plus a new
-   refresh token; return a new access token.
+2. End the current application session (`revoked_at` set, `revoke_reason = 'tenant_switch'`) and,
+   where the provider supports it, revoke the associated provider session/refresh token. A tenant
+   switch is not a silent in-place mutation.
+3. Create a new application session row with the new `tenant_id`/`membership_id` and a new
+   application session id; re-run the provider flow as required; return a new access token.
 4. Emit `session.tenant_switched` with actor, from-tenant, to-tenant, correlation id and
    session ids.
 
@@ -210,8 +238,9 @@ shared API keys in configuration are prohibited (C9).
 revokes all sessions immediately. On password or MFA reset, revoke all sessions except the
 current one. Recovery uses a verified channel with rate limiting and audit. Tenant-admin lockout
 is recovered by support with identity verification, a time limit and a tenant-visible audit
-record — **no silent impersonation** (`SECURITY_BASELINE.md`). Reuse of a rotated refresh token
-is treated as theft: revoke the family, alert, audit.
+record — **no silent impersonation** (`SECURITY_BASELINE.md`). Provider refresh-token reuse is
+handled by the provider where supported; the ERP records the resulting application-session
+revocation and audits it.
 
 **R10 — Offline authorization is bounded and explicit.** On successful online login a device
 receives a signed authorization snapshot (subject, tenant, membership id, permission version,
@@ -237,11 +266,11 @@ limits at the edge.
 | Dimension | Impact |
 |---|---|
 | **Modules** | The `Identity & Access` module owns users, memberships, platform grants, roles, sessions and the device registry; other modules consume an `ICurrentUser`/`ITenantContext` contract, never raw tokens. |
-| **Data** | Tables: user, membership, platform_grant, role, permission, role_assignment, session, refresh_token, device, mfa_credential, recovery_token. Token/secret values are stored hashed; no plaintext. |
-| **API** | Standard OIDC discovery; `/sessions`, `/sessions/{id}/tenant`, `/me`, `/devices`; `401` vs `403` semantics defined; `WWW-Authenticate` used correctly; OpenAPI security schemes declared per operation. |
+| **Data** | Tables owned by the ERP: user, membership, platform_grant, role, permission, role_assignment, application session, device, mfa_reference, recovery_token. Authentication credentials and provider refresh tokens are provider-owned; no plaintext credential or token is stored. |
+| **API** | Standard OIDC discovery through the provider; application endpoints `/sessions`, `/sessions/{id}/tenant`, `/me`, `/devices`; `401` vs `403` semantics defined; `WWW-Authenticate` used correctly; OpenAPI security schemes declared per operation. A BFF, if used, has its own documented cookie/session model. |
 | **Permissions** | Deny-by-default; permission and scope resolved per request for privileged operations; branch/entity scope enforced in the application (D-001 R10/R11). |
 | **Accounting** | High-risk journal/refund/void actions require step-up; the audit event links approver and session. No accounting posting rule is decided here (D-008). |
-| **Offline** | Device-bound refresh tokens in OS-protected storage; signed, expiring authorization snapshot; revalidation on reconnect; queued commands quarantined for revoked devices. |
+| **Offline** | Provider authentication token held in OS-protected storage; signed, expiring application authorisation snapshot; revalidation on reconnect; queued commands quarantined for revoked devices. |
 | **Reporting** | Report access uses the same session and scope; exports are attributed to the session and audited. |
 | **Migration** | Greenfield: identity tables created after approval. Importing users from an existing IdP or legacy system requires a provisioning plan (invite-and-claim is preferred over password migration). |
 | **Operations** | IdP availability becomes a login dependency; outage runbook needed (existing sessions keep working until token expiry). Key rotation and IdP configuration are operational responsibilities. |
@@ -250,62 +279,77 @@ limits at the edge.
 
 | Evidence | Type |
 |---|---|
-| Expired access token → `401`; revoked session → `401` within the documented cache window | Integration test |
-| Refresh-token reuse revokes the session family and raises an audit/security event | Integration test |
+| Expired access token → `401`; revoked application session → `401` within the documented cache window | Integration test |
+| Provider refresh-token reuse handling is documented; where the provider revokes the session, the ERP records and audits the resulting revocation | Integration test + provider contract note |
 | Missing permission → `403`; privilege escalation attempt via client-supplied role/tenant claim → denied | API negative test |
 | A token with a forged `tenant` or `permission` claim changes nothing (those claims are ignored) | API negative test |
 | Token/permission caches are tenant-scoped; cross-tenant cache key reuse is impossible | Integration test |
 | Role change bumps the **membership** version and invalidates only that tenant's cache | Integration test |
-| Tenant switch creates a new session, revokes the old refresh family and audits from/to tenant | Integration test |
+| Tenant switch ends the old application session, creates a new one, applies provider revocation where supported, and audits from/to tenant | Integration test |
 | MFA challenge required for each role class per the approved policy | API test |
 | Step-up freshness enforced on high-risk actions | API test |
 | Unknown `kid` triggers a JWKS refresh; a failed refresh fails closed | Integration test |
 | Offline snapshot expiry blocks offline operations; revoked device cannot sync | Client + server test (with D-012/D-013) |
 | No token, password or OTP appears in logs, traces or error responses | Log inspection test |
 
-## 7. Open questions for the approver
+## 7. Approver questions — outcome
 
-1. **Vendor and cost ceiling:** which managed IdP, and what per-active-user cost ceiling is
-   acceptable against the affordable-subscription model (`PF-001`)?
-   *Fast-track note:* the approach can be approved now and the vendor selected before the
-   authentication work package starts, because the adapter boundary (R2) makes the choice
-   reversible. If vendor selection slips, development can use a local OIDC test provider.
-2. **Data residency:** does D-009's launch jurisdiction require identity data to stay in a
-   specific region? This can eliminate some vendors.
-3. **MFA exact policy:** confirm the role classes in R6, and whether SMS may be offered.
-4. **Session lifetimes:** confirm or amend R4's values.
-5. **Customer identity:** confirm that customer-portal users are a separate identity population
-   with no employee claims and different recovery rules.
-6. **Password ownership:** if the IdP owns credentials, our password policy is delegated; is
-   that acceptable, or is a specific policy required in the contract?
-7. **BYO/enterprise SSO:** confirm it is deferred beyond launch.
+Resolved or delegated by the 2026-11-03 authorisation:
 
-## 8. Draft ADR (paste only after approval)
+1. **Vendor and cost ceiling:** approach approved; production provider pending selection.
+   Selection priority is lowest sensible long-term operating cost meeting security and
+   residency. A comparison is required for Amazon Cognito, Microsoft Entra External ID and
+   Logto, covering MFA, SMS, email, machine identities, organisation features, support and data
+   residency. Development uses a local OIDC test provider; entry-level free plans are not a
+   selection criterion.
+2. **Data residency:** not yet fixed. It is a selection criterion, not a blocker for local
+   development. D-009 still owns the launch-jurisdiction answer.
+3. **MFA exact policy:** mandatory for platform administrators, tenant owners and roles holding
+   a high-risk permission. SMS is not mandated; provider capability and cost are compared.
+4. **Session lifetimes:** access token 10 minutes, configurable within 5–15. Other lifetimes
+   remain engineering defaults until a provider is selected and the session design is documented.
+5. **Customer identity:** confirmed separate from employee identities, with separate
+   authorisation and recovery rules.
+6. **Password ownership:** delegated to the managed provider. No ERP-owned password policy is
+   implemented unless the selected provider requires one.
+7. **BYO/enterprise SSO:** deferred beyond launch.
+
+## 8. Draft ADR (recorded)
+
+The accepted ADR is `ADR-0013` in `DECISIONS.md`. The draft below is retained for traceability;
+where it differs from `DECISIONS.md`, the recorded ADR and the §12 authorisation amendments
+prevail.
 
 ```markdown
 ## ADR-0013 — Identity, sessions and authorization resolution
 
-- **Status:** Proposed (awaiting approval)
-- **Decision:** All interactive clients authenticate with OIDC/OAuth 2.1 Authorization Code +
+- **Status:** Accepted (2026-11-03); production provider pending selection — recorded in
+  DECISIONS.md
+- **Decision:** All interactive clients authenticate with OIDC/OAuth 2.0 Authorization Code +
   PKCE through a managed, standards-compliant identity provider accessed through an
-  application-owned abstraction. Access tokens carry only subject and session claims (no tenant,
-  no permissions) and are validated against a cached JWKS with an algorithm allowlist.
-  Short-lived access tokens (recommended 10 minutes) are backed by a server-side session
-  registry; refresh tokens rotate with reuse detection; revocation is a server-side row update.
-  One session belongs to one tenant; switching tenant is an explicit, audited operation that
-  creates a new session. Permissions and entity/branch scope are resolved server-side, versioned
-  per membership (or per platform grant) rather than per user. MFA is mandatory for platform
-  operators, tenant administrators and roles holding high-risk permissions. Machine identities
-  use OAuth client credentials with per-tenant encrypted credentials. Offline clients hold a
-  device-bound refresh token in OS-protected storage and a signed, expiring authorization
-  snapshot; offline writes remain governed by D-012/D-013.
-- **Options rejected:** in-house identity for launch, long-lived JWTs without revocation,
-  cached passwords for offline login, tenant/permission claims in the token, and per-tenant BYO
-  IdP at launch.
-- **Consequences:** identity module and session schema; login becomes a runtime dependency;
-  step-up authentication for high-risk actions; device-bound offline authorization; vendor
-  selection and residency must be approved separately.
-- **Approval:** approver role, name, date and evidence to be recorded here.
+  application-owned abstraction. Access tokens are short-lived (target 10 minutes, configurable
+  5–15) and carry only subject/session claims; tenant, membership, role, permission and branch
+  scope are resolved server-side and are never trusted from client-supplied claims. The managed
+  provider owns authentication credentials and its refresh-token lifecycle; the ERP does not
+  create a second parallel refresh-token system. The ERP maintains application session and
+  authorisation records for tenant selection, membership validation, device registration,
+  session revocation, permission-version tracking and audit attribution, with the provider/
+  application/revocation relationship documented. One application session belongs to one
+  tenant; switching tenant is explicit, audited and creates a new application session. MFA is
+  mandatory for platform administrators, tenant owners and high-risk permissions. Machine
+  identities use workload identity or narrowly scoped OAuth client credentials. Offline clients
+  hold a signed, expiring, device-bound authorisation snapshot; offline writes remain governed
+  by D-012/D-013.
+- **Client model:** Next.js owner portal uses a BFF with secure HttpOnly cookies; WPF and Flutter
+  use system-browser OIDC + PKCE and OS-protected storage; the customer PWA is a separate
+  identity population. Provider client secrets never ship in desktop, mobile or browser clients.
+- **Options rejected:** in-house identity for launch, long-lived JWTs without revocation, cached
+  passwords for offline login, tenant/permission claims in the token, a second ERP-owned refresh
+  token system, and per-tenant BYO IdP at launch.
+- **Consequences:** identity module and application-session schema; login becomes a runtime
+  dependency; step-up authentication for high-risk actions; device-bound offline authorisation;
+  production provider selection, cost ceiling and residency remain open.
+- **Approval:** project owner (delegated technical authority), 2026-11-03, written instruction.
 - **Revisit trigger:** a mandated jurisdiction requiring identity data residency, a
   per-active-user cost that breaks the pricing model, or an identity-related security incident.
 ```
@@ -314,11 +358,12 @@ limits at the edge.
 
 | Field | Value |
 |---|---|
-| Outcome (`Approved` / `Approved with amendments` / `Deferred` / `Rejected`) | _pending_ |
-| Approver role and name | _pending_ |
-| Date | _pending_ |
-| Amendments required | _pending_ |
-| Evidence / meeting reference | _pending_ |
+| Outcome | **Approved with amendments** (production identity provider pending selection) |
+| Approver role | Project owner (delegated technical architecture authority) |
+| Name | Not recorded in this repository; authorisation given by written instruction |
+| Date | 2026-11-03 |
+| Amendments required | Provider owns refresh-token lifecycle; no parallel ERP refresh-token system; BFF/system-browser/secure-storage client model; provider comparison and pending selection; offline snapshot rules; other rules as listed in `DECISIONS.md` ADR-0013 |
+| Evidence / meeting reference | Owner instruction dated 2026-11-03; recorded in `DECISIONS.md` ADR-0013 and `DECISION_REGISTER.md` |
 
 ## 10. Sources
 
@@ -346,3 +391,25 @@ limits at the edge.
 | DP-11 | Tenant switching named but undefined | R5a: explicit endpoint, new session, old refresh family revoked, audited |
 | DP-12 | MFA triggered by unnormalised permission strings | R6: driven by the permission catalogue's `risk_class`; named permissions labelled illustrative |
 | DP-15 | Device registration in `platform` vs identity concern in D-002 | `identity.device` is the single device registry; D-013 owns detail |
+
+## 12. Authorisation amendments (2026-11-03)
+
+The project owner approved this decision with the following amendments. They override any
+contrary wording above.
+
+| Topic | Authorised rule |
+|---|---|
+| Provider ownership | The managed identity provider owns authentication credentials and its refresh-token lifecycle |
+| No parallel token system | The ERP must not create a second refresh-token system while relying on the provider. ERP session records exist only for tenant selection, membership validation, device registration, session revocation, permission-version tracking and audit attribution |
+| Relationship design | The relationship between provider tokens, ERP application sessions and revocation must be documented before implementation. Do not assume an identical `sid` claim or identical revocation semantics across providers |
+| BFF / broker | If an application-owned token broker or BFF session is required, document the reason and exact security model first |
+| Client flows | Next.js owner portal: BFF, secure HttpOnly cookie, `Secure`, appropriate `SameSite`. WPF: system-browser OIDC + PKCE, Windows-protected storage. Flutter: system-browser/platform OIDC + PKCE, secure platform storage. Customer PWA: separate customer identity population. Background services: workload identity or narrowly scoped OAuth client credentials |
+| Client secrets | Never in desktop, mobile or browser applications |
+| MFA | Mandatory for platform administrators, tenant owners and high-risk privileged roles |
+| Tenant switching | Explicit, audited; creates a new application session |
+| Device/session | Device registration and session revocation supported |
+| Customer identity | Separate from employee identities |
+| Offline POS | Signed, expiring, device-bound authorisation snapshot with minimum necessary scope; no stored passwords; OS secure storage; defined expiry and clock-tampering behaviour; approved operation allowlist only; revalidate on reconnect; quarantine revoked-device commands; D-012/D-013 remain authoritative for offline writes |
+| Provider selection | Development uses a local OIDC provider. Compare Amazon Cognito, Microsoft Entra External ID and Logto on total cost (MFA, SMS, email, machine identities, organisation features, support, residency). Do not choose on free entry tier alone. Do not commit production provider-specific code before approval |
+| Access token | Target 10 minutes, configurable within 5–15 minutes |
+

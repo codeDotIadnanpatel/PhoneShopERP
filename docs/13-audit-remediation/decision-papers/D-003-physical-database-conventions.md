@@ -1,14 +1,16 @@
 # D-003 — Physical Database Conventions
 
-> **Status: PROPOSED — NOT APPROVED.**
-> This is a recommendation prepared by an AI assistant. It is **not** an approved decision,
-> ADR or schema. Under `DECISION_REGISTER.md`, an AI agent may recommend an option but must not
-> approve architecture or security policy. No migration may be written from this document until
-> an authorised human approver records the outcome.
+> **Status: ACCEPTED — AUTHORISED 2026-11-03.**
+> The project owner authorised this decision, with amendments, by written instruction dated
+> 2026-11-03, delegating technical architecture authority. The decision is recorded as
+> `ADR-0014` in `DECISIONS.md`. This is an internal architecture approval, not an external
+> security audit or a claim that every verification item in §6 has been executed.
+>
+> **Revision 3 (2026-11-03):** added the approved module-boundary and identifier-security
+> amendments in §12, and marked the approver questions in §7 as resolved or still open.
 >
 > **Revision 2 (2026-11-02):** DP-01, DP-02, DP-03, DP-04, DP-08, DP-09, DP-14 and DP-15 from
 > `../PHASE_00_BRANCH_REVIEW.md` §3.3 are resolved in this text. Summary of changes in §11.
-> Nothing here is approved by the revision.
 
 | Field | Value |
 |---|---|
@@ -18,7 +20,7 @@
 | **Slice items unblocked** | `FS-003` (RLS), `FS-004`–`FS-007` (catalogue, devices, stock, movements), `FS-008` (migration quality gate) |
 | **Affected areas** | All backend modules, migrations, reporting queries, offline identifiers, API contracts |
 | **Required by** | First migration |
-| **Decision owner** | **Unassigned** — must be a named Architecture + Data approver |
+| **Decision owner** | Project owner (delegated technical authority), authorised 2026-11-03 |
 | **Prepared** | 2026-11-02 (AI assistant, for review) |
 | **Suggested ADR number** | `ADR-0014` |
 | **Depends on** | D-001 (tenant context/RLS) for role and policy conventions |
@@ -289,34 +291,43 @@ level.
 | EF model matches the database (schema drift check), if EF Core is used for mapping | CI |
 | `platform.current_tenant_id()` is `STABLE` and adds no measurable plan regression on the hot queries | Benchmark note |
 
-## 7. Open questions for the approver
+## 7. Approver questions — outcome
 
-1. **Migration tooling:** confirm SQL-first + in-process runner (recommended) or EF Core
-   migrations. If EF is preferred, the policy/grants convention and per-module history must be
-   specified.
-2. **Schema per module:** confirm, and confirm that `platform` is an accepted shared exception
-   with the three-way split in R1.
-3. **Cross-module foreign keys:** confirm the "no business-module FKs" rule, or name the
-   relationships that must be enforced in the database from day one.
-4. **UUIDv7 source:** confirm that server processes and approved offline clients may generate
-   UUIDv7 identifiers, and that a database default is prohibited. (This is the corrected
-   version of the previous wording, which appeared to forbid offline generation.)
-5. **Global reference data:** confirm that vendor-owned reference tables live in `platform` with
-   natural code keys and **no** `tenant_id`, and that no tenant-owned table carries nullable
-   `tenant_id` rows.
+Resolved by the 2026-11-03 authorisation:
+
+1. **Migration tooling:** SQL-first reviewed scripts executed by DbUp (a mature .NET-compatible
+   tool), not a custom framework and not EF Core migrations as the default.
+2. **Schema per module:** approved, with `platform` as the shared exception and the three-way
+   object split in R1.
+3. **Cross-module foreign keys:** the absolute prohibition is withdrawn. Explicitly reviewed
+   cross-module foreign keys are permitted where they protect essential referential integrity in
+   the same database; ownership and extraction implications must be recorded. Unnecessary
+   coupling remains prohibited.
+4. **UUIDv7 source:** approved — server processes and approved offline clients may generate
+   UUIDv7; a database default is prohibited. UUIDs are identifiers, never authorisation.
+5. **Global reference data:** approved — vendor reference tables live in `platform` with natural
+   code keys and no `tenant_id`; no tenant-owned table carries nullable `tenant_id` rows.
+8. **`jsonb` boundary:** retained — no core business field may be stored as `jsonb`; it is for
+   integration payloads, audit snapshots and vendor metadata only.
+
+Still open (not invented by this decision):
+
 6. **Monetary precision:** AG-04 must set scale and rounding before the first money column
    exists; this paper only fixes `numeric` + `currency_code`.
 7. **Quantity precision:** AG-06 must set quantity/UoM precision before the first quantity
    column exists.
-8. **`jsonb` boundary:** confirm that no core business field may be stored as `jsonb`.
 9. **Partitioning:** deferred; high-volume ledger partitioning is a later, measured decision.
 
-## 8. Draft ADR (paste only after approval)
+## 8. Draft ADR (recorded)
+
+The accepted ADR is `ADR-0014` in `DECISIONS.md`. The draft below is retained for traceability;
+where it differs from `DECISIONS.md`, the recorded ADR and the §12 authorisation amendments
+prevail.
 
 ```markdown
 ## ADR-0014 — Physical database conventions
 
-- **Status:** Proposed (awaiting approval)
+- **Status:** Accepted (2026-11-03) — recorded in DECISIONS.md
 - **Decision:** A single PostgreSQL database with one schema per approved module plus a shared
   `platform` schema. `platform` holds three distinct object classes: vendor-owned global
   reference data (natural code keys, no `tenant_id`, no RLS), tenant-scoped cross-cutting
@@ -330,16 +341,17 @@ level.
   `numeric` with explicit precision set by AG-04/AG-06 and currency via `text` + ISO check +
   reference FK; states are `text` + `CHECK`; deletion defaults to `RESTRICT` and
   ledgers/journals/audit are append-only. Migrations are SQL-first, module-owned, forward-only,
-  checksummed, executed by a restricted migration role, and create RLS policies, grants and the
-  version trigger in the same script as the table. Data migrations run per tenant under RLS.
+  checksummed, executed by DbUp under a restricted migration role, and create RLS policies,
+  grants and the version trigger in the same script as the table. Data migrations run per tenant
+  under RLS. Cross-module foreign keys are permitted only with explicit review and documented
+  ownership/extraction implications. UUIDs are identifiers, not authorisation.
 - **Options rejected:** single `public` schema, database-per-module, UUIDv4, `bigint` identity
-  aggregate keys, ULID, `char(n)`, nullable `tenant_id` reference rows, and
-  EF-migrations-as-default for a ledger system (see D-003 paper §3).
+  aggregate keys, ULID, `char(n)`, nullable `tenant_id` reference rows, a custom migration
+  framework, and EF-migrations-as-default for a ledger system (see D-003 paper §3).
 - **Consequences:** every module ships schema, scripts and grants together; offline identifiers
   require no remapping; a schema-drift test is mandatory if EF Core is used for mapping;
-  cross-module business foreign keys are not permitted by default; data-fix migrations must be
-  tenant-scoped.
-- **Approval:** approver role, name, date and evidence to be recorded here.
+  cross-module foreign keys require a review record; data-fix migrations must be tenant-scoped.
+- **Approval:** project owner (delegated technical authority), 2026-11-03, written instruction.
 - **Revisit trigger:** evidence that module extraction requires physical separation, a measured
   index/locality problem with UUIDv7, or a jurisdiction requirement affecting data placement.
 ```
@@ -348,11 +360,12 @@ level.
 
 | Field | Value |
 |---|---|
-| Outcome (`Approved` / `Approved with amendments` / `Deferred` / `Rejected`) | _pending_ |
-| Approver role and name | _pending_ |
-| Date | _pending_ |
-| Amendments required | _pending_ |
-| Evidence / meeting reference | _pending_ |
+| Outcome | **Approved with amendments** |
+| Approver role | Project owner (delegated technical architecture authority) |
+| Name | Not recorded in this repository; authorisation given by written instruction |
+| Date | 2026-11-03 |
+| Amendments required | Cross-module foreign keys permitted with explicit review; UUIDs are identifiers, not authorisation; migration tool fixed to DbUp; other rules as listed in `DECISIONS.md` ADR-0014 |
+| Evidence / meeting reference | Owner instruction dated 2026-11-03; recorded in `DECISIONS.md` ADR-0014 and `DECISION_REGISTER.md` |
 
 ## 10. Sources
 
@@ -382,3 +395,17 @@ level.
 | DP-09 | `platform` schema/helper grants unstated | Grants and default privileges are specified in D-001 R3a |
 | DP-14 | `row_version` application-managed; raw SQL can bypass | `BEFORE UPDATE` trigger guarantees the increment |
 | DP-15 | Device registration in `platform` while D-002 treats it as identity | Moved to `identity.device`; D-013 owns the detail |
+
+## 12. Authorisation amendments (2026-11-03)
+
+The project owner approved this decision with the following amendments. They override any
+contrary wording above.
+
+| Topic | Authorised rule |
+|---|---|
+| Cross-module foreign keys | Not prohibited absolutely. Permitted where explicitly reviewed and where they protect essential referential integrity in the same PostgreSQL database. Each reviewed key records the owning module, the dependent module and the extraction implication. Unnecessary coupling remains prohibited |
+| Identifier security | UUIDs are identifiers, never authorisation. The server independently validates tenant ownership, permissions and resource access. A client-generated UUID is never proof of ownership |
+| Migration tool | DbUp (or another justified mature .NET-compatible tool), not a custom migration framework. Checksums, locking, ordered execution and clean-database verification are mandatory |
+| Migration execution | Production migrations are never applied automatically during API startup. `EnsureCreated` is never used in production |
+| Module coupling | Cross-module reads still go through contracts. A cross-module foreign key is an integrity exception, not permission for arbitrary shared-table access |
+

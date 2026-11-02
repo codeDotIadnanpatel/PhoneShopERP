@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>PhoneShopErp.Platform</RootNamespace>
+    <!--
+      Shared platform primitives. No database, HTTP or provider SDK types belong
+      here: every module may reference this assembly.
+    -->
+  </PropertyGroup>
+
+</Project>

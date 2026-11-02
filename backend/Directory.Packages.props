@@ -13,8 +13,24 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Test-only packages. No production runtime dependency is declared yet. -->
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.8" />
+    <!-- Runtime. Reviewed additions for Phase 01 (ADR-0014: SQL-first, no ORM). -->
+    <PackageVersion Include="dbup-postgresql" Version="7.0.1" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.23.0" />
+    <!--
+      Transitive pin: Microsoft.AspNetCore.OpenApi 10.0.14 allows
+      Microsoft.OpenApi [2.12.2, 3.0.0). 2.13.0 is pinned because earlier 2.x
+      versions carry a known high-severity advisory (GHSA-v5pm-xwqc-g5wc) and
+      NuGet audit is an error in this repository.
+    -->
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.13.0" />
+    <PackageVersion Include="Npgsql" Version="10.0.3" />
+    <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.23.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Test-only packages. -->
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.14" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />

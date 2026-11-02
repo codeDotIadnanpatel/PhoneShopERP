@@ -1,14 +1,18 @@
 # D-001 — Tenant Context and PostgreSQL RLS Session Propagation
 
-> **Status: PROPOSED — NOT APPROVED.**
-> This is a recommendation prepared by an AI assistant. It is **not** an approved decision,
-> ADR or policy. Under `DECISION_REGISTER.md`, an AI agent may recommend an option but must
-> not approve business, accounting, legal or security policy. Nothing in this document
-> authorises implementation until an authorised human approver records the outcome.
+> **Status: ACCEPTED — AUTHORISED 2026-11-03.**
+> The project owner authorised this decision, with amendments, by written instruction dated
+> 2026-11-03, delegating technical architecture authority. The decision is recorded as
+> `ADR-0012` in `DECISIONS.md`. The support-access model is recorded separately as `ADR-0015`.
+> This is an internal architecture approval, not an external security audit or a claim that
+> every verification item in §7 has been executed.
+>
+> **Revision 3 (2026-11-03):** added the approved RLS security clarification, support-access
+> model and database-isolation-tier constraints in §13, and marked the approver questions in §8
+> as resolved or still open.
 >
 > **Revision 2 (2026-11-02):** DP-02, DP-04, DP-06, DP-07, DP-08, DP-09 and DP-13 from
 > `../PHASE_00_BRANCH_REVIEW.md` §3.3 are resolved in this text. Summary of changes in §12.
-> Nothing here is approved by the revision.
 
 | Field | Value |
 |---|---|
@@ -18,7 +22,7 @@
 | **Slice items unblocked** | `FS-001` (tenant/entity/branch context), `FS-003` (RLS enforcement); prerequisite for all tenant-owned tables |
 | **Affected areas** | API, database, background jobs, exports, reporting, caching, file storage, support tooling |
 | **Required by** | First tenant-owned persistence (i.e. before any module schema is created) |
-| **Decision owner** | **Unassigned** — must be a named Architecture + Security approver |
+| **Decision owner** | Project owner (delegated technical authority), authorised 2026-11-03 |
 | **Prepared** | 2026-11-02 (AI assistant, for review) |
 | **Suggested ADR number** | `ADR-0012` |
 | **Depends on** | D-003 (key types, DB roles, naming); D-002 (trusted authenticated subject) |
@@ -325,26 +329,36 @@ HTTP request
 | Job, export and report paths deny cross-tenant access | Integration test |
 | `SET`/`SET ROLE`/`BYPASSRLS` usage outside the approved role is absent from code | Static check |
 
-## 8. Open questions for the approver
+## 8. Approver questions — outcome
 
-1. **Dedicated-tier roadmap:** is a per-tenant database tier required for any launch customer?
-   If yes, D-001 must define how isolation tiers coexist without changing domain semantics.
-2. **Support access model:** `SECURITY_BASELINE.md` forbids silent impersonation. Does support
-   use the audited `erp_platform_admin` bypass, or tenant-consented, tenant-visible
-   impersonation sessions? This changes the audit and consent schema.
-3. **Vendor-owned reference data:** confirm the three-way split in R2 — global reference tables
-   in `platform` without `tenant_id`, no nullable `tenant_id` anywhere.
-4. **Audit read policy:** confirm tenant-scoped RLS on `platform.audit_event` reads with
-   append-only grants, and a separate platform-only `security_event` table for pre-tenant
-   events. (Recommended; this is now part of the proposal rather than an open question.)
-5. **Pooling mode:** confirm PgBouncer transaction pooling at launch, or direct connections.
+Resolved by the 2026-11-03 authorisation:
 
-## 9. Draft ADR (paste only after approval)
+1. **Dedicated-tier roadmap:** no per-tenant database, schema or role at launch. The architecture
+   must remain capable of a dedicated database tier later if commercial or regulatory
+   requirements justify it.
+2. **Support access model:** a separate audited platform-administration model
+   (`erp_platform_admin`) is approved for the initial release. Silent impersonation is
+   prohibited. Consent-based, tenant-visible support impersonation is deferred until consent,
+   expiry, visibility and audit are designed (ADR-0015).
+3. **Vendor-owned reference data:** approved — global reference tables in `platform` without
+   `tenant_id`; no nullable `tenant_id` anywhere.
+4. **Audit read policy:** approved — tenant-scoped RLS on `platform.audit_event` reads with
+   append-only grants, plus a separate platform-only `platform.security_event` table for
+   pre-tenant events.
+5. **Pooling mode:** not fixed by the authorisation. It remains an engineering decision, provided
+   transaction-local context is used and pooled-connection leakage is tested. The chosen mode
+   must be documented before production.
+
+## 9. Draft ADR (recorded)
+
+The accepted ADR is `ADR-0012` in `DECISIONS.md`. The draft below is retained for traceability;
+where it differs from `DECISIONS.md`, the recorded ADR and the §13 authorisation amendments
+prevail.
 
 ```markdown
 ## ADR-0012 — Tenant context and RLS enforcement
 
-- **Status:** Proposed (awaiting approval)
+- **Status:** Accepted (2026-11-03) — recorded in DECISIONS.md
 - **Decision:** Shared PostgreSQL database and tables; `tenant_id NOT NULL` on every
   tenant-owned row and never nullable; `ENABLE` + `FORCE` ROW LEVEL SECURITY with a
   `tenant_isolation` policy on `tenant_id = platform.current_tenant_id()`; transaction-local
@@ -355,15 +369,16 @@ HTTP request
   from a validated token plus server-side session and membership, never from a request field or
   token claim. RLS enforces the tenant boundary only; legal-entity/branch/location scope is
   application authorization enforced and tested separately. Audit rows are tenant-scoped and
-  append-only; pre-tenant security events live in a platform-only table.
-- **Options rejected:** session-level `SET`, per-tenant roles/schemas, application-only
+  append-only; pre-tenant security events live in a platform-only table. Support access uses the
+  audited platform-administration role; silent impersonation is prohibited.
+- **Options rejected:** session-level `SET`, per-tenant roles/schemas at launch, application-only
   filtering, branch/entity predicates inside RLS for the first slice, and nullable `tenant_id`
   reference rows (see D-001 paper §3).
 - **Consequences:** every tenant-scoped unit of work must be transaction-wrapped; every
   tenant-owned migration must include RLS, grants and the version trigger; jobs/exports/caches
   must carry tenant scope; data migrations run per tenant; CI enforces RLS coverage and
   cross-tenant negative tests.
-- **Approval:** approver role, name, date and evidence to be recorded here.
+- **Approval:** project owner (delegated technical authority), 2026-11-03, written instruction.
 - **Revisit trigger:** introduction of a dedicated-database tenant tier, a confirmed
   branch-scope leak class, or a change in pooling topology.
 ```
@@ -372,11 +387,12 @@ HTTP request
 
 | Field | Value |
 |---|---|
-| Outcome (`Approved` / `Approved with amendments` / `Deferred` / `Rejected`) | _pending_ |
-| Approver role and name | _pending_ |
-| Date | _pending_ |
-| Amendments required | _pending_ |
-| Evidence / meeting reference | _pending_ |
+| Outcome | **Approved with amendments** |
+| Approver role | Project owner (delegated technical architecture authority) |
+| Name | Not recorded in this repository; authorisation given by written instruction |
+| Date | 2026-11-03 |
+| Amendments required | RLS security clarification (settings are not a defence against arbitrary SQL); audited platform-admin support access only; no per-tenant database/schema/role at launch; other rules as listed in `DECISIONS.md` ADR-0012 |
+| Evidence / meeting reference | Owner instruction dated 2026-11-03; recorded in `DECISIONS.md` ADR-0012/ADR-0015 and `DECISION_REGISTER.md` |
 
 ## 11. Sources
 
@@ -404,3 +420,21 @@ HTTP request
 | DP-08 | `FORCE` RLS + migrator with no context path | R7 clarifies DDL is not subject to RLS; data migrations run per tenant via `platform.tenant_ids()`; RLS is never disabled |
 | DP-09 | `USAGE`/`EXECUTE` grants unstated | R3a specifies schema `USAGE`, helper `EXECUTE`, reference `SELECT`, audit `INSERT/SELECT`, `PUBLIC` revocation and default privileges |
 | DP-13 | Helper language/volatility unspecified | R4: `STABLE`, `SECURITY INVOKER`, schema-qualified, benchmark note, and a documented inline fallback |
+
+## 13. Authorisation amendments (2026-11-03)
+
+The project owner approved this decision with the following amendments. They override any
+contrary wording above.
+
+| Topic | Authorised rule |
+|---|---|
+| RLS and compromised application role | Application-set PostgreSQL custom settings are not a defence against arbitrary SQL execution under a compromised shared application role. RLS is critical defence in depth, not a substitute for secure code |
+| SQL safety | Parameterise every SQL statement. Never concatenate untrusted SQL. Never expose database credentials to clients. Protect API and database credentials. Enforce strict application authorisation. Keep the application role least-privileged. Test SQL injection and cross-tenant access |
+| Context scope | Transaction-local context only. Session-level tenant variables are prohibited in application code |
+| Support access | Separate audited platform-administration model for the initial release. No silent impersonation. Consent-based, tenant-visible impersonation deferred until consent, expiry, visibility and audit are designed (ADR-0015) |
+| Isolation tiers | No per-tenant databases, schemas or roles at launch. The architecture must remain capable of a dedicated database tier later if commercial or regulatory requirements justify it |
+| Required roles | `erp_owner` (`NOLOGIN`), `erp_migrator` (migration only), `erp_app` (runtime, no DDL, no `BYPASSRLS`), `erp_platform_admin` (separate, tightly controlled) |
+| Normal API connection | Never a superuser, schema owner, migrator or platform administrator |
+| Tenant identity | Must come from a validated authenticated session and server-side membership. Never from an ordinary request, header or query string |
+| Authorisation layers | Tenant boundary by RLS; branch, legal-entity and location permissions separately by application authorisation |
+

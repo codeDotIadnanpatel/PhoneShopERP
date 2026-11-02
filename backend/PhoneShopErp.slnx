@@ -1,9 +1,22 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/PhoneShopErp.Api/PhoneShopErp.Api.csproj" />
+    <Project Path="src/PhoneShopErp.Migrations/PhoneShopErp.Migrations.csproj" />
+    <Project Path="src/PhoneShopErp.Persistence/PhoneShopErp.Persistence.csproj" />
+    <Project Path="src/PhoneShopErp.Platform/PhoneShopErp.Platform.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/">
+    <Project Path="src/Modules/Tenancy/PhoneShopErp.Modules.Tenancy.Application/PhoneShopErp.Modules.Tenancy.Application.csproj" />
+    <Project Path="src/Modules/Tenancy/PhoneShopErp.Modules.Tenancy.Infrastructure/PhoneShopErp.Modules.Tenancy.Infrastructure.csproj" />
+    <Project Path="src/Modules/IdentityAccess/PhoneShopErp.Modules.IdentityAccess.Application/PhoneShopErp.Modules.IdentityAccess.Application.csproj" />
+    <Project Path="src/Modules/IdentityAccess/PhoneShopErp.Modules.IdentityAccess.Infrastructure/PhoneShopErp.Modules.IdentityAccess.Infrastructure.csproj" />
+    <Project Path="src/Modules/SaasPlatform/PhoneShopErp.Modules.SaasPlatform.Application/PhoneShopErp.Modules.SaasPlatform.Application.csproj" />
+    <Project Path="src/Modules/SaasPlatform/PhoneShopErp.Modules.SaasPlatform.Infrastructure/PhoneShopErp.Modules.SaasPlatform.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/PhoneShopErp.Api.Integration.Tests/PhoneShopErp.Api.Integration.Tests.csproj" />
     <Project Path="tests/PhoneShopErp.Architecture.Tests/PhoneShopErp.Architecture.Tests.csproj" />
+    <Project Path="tests/PhoneShopErp.Database.Tests/PhoneShopErp.Database.Tests.csproj" />
+    <Project Path="tests/PhoneShopErp.Platform.Tests/PhoneShopErp.Platform.Tests.csproj" />
   </Folder>
 </Solution>

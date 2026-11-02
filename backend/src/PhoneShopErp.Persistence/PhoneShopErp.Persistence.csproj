@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>PhoneShopErp.Persistence</RootNamespace>
+    <!--
+      Shared PostgreSQL access. Deliberately no ORM (ADR-0014): reviewed SQL,
+      parameterised commands and one tenant-scoped unit-of-work boundary.
+    -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PhoneShopErp.Platform\PhoneShopErp.Platform.csproj" />
+  </ItemGroup>
+
+</Project>

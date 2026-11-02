@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>PhoneShopErp.Modules.SaasPlatform.Infrastructure</RootNamespace>
+    <AssemblyName>PhoneShopErp.Modules.SaasPlatform.Infrastructure</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PhoneShopErp.Modules.SaasPlatform.Application\PhoneShopErp.Modules.SaasPlatform.Application.csproj" />
+    <ProjectReference Include="..\..\PhoneShopErp.Persistence\PhoneShopErp.Persistence.csproj" />
+  </ItemGroup>
+
+</Project>
