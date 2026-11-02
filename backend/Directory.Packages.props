@@ -1,0 +1,23 @@
+<Project>
+
+  <!--
+    Central Package Management. Every PackageReference must resolve its version
+    from here so there is exactly one version per package in the backend solution.
+
+    Version policy: pin exact versions, upgrade via a reviewed change. Do not use
+    floating version ranges (e.g. "10.*" or "latest") in this file.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Test-only packages. No production runtime dependency is declared yet. -->
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
+</Project>

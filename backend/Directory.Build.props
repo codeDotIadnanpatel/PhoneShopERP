@@ -1,0 +1,31 @@
+<Project>
+
+  <!--
+    Shared build settings for every .NET project under backend/.
+
+    These settings are deliberate Phase 00 baseline decisions, not product behaviour.
+    Changing them affects CI quality gates, so review is required.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Quality gates: warnings are errors so CI cannot silently accumulate debt. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- Reproducible builds for CI and release evidence. -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!--
+      Deliberately not set: InvariantGlobalization. The product is global-ready
+      (ADR-0003) and must not bake a single-culture assumption into the runtime.
+    -->
+  </PropertyGroup>
+
+</Project>

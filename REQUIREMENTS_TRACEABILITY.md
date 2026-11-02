@@ -54,6 +54,25 @@ These IDs extend the baseline; they do not replace existing product requirement 
 | ENG-011 | Architecture decisions pass recorded approval gates | `ARCHITECTURE_GATES.md` | P00-W01 | ADR-GATE-001 signed decision/evidence record |
 | ENG-012 | API examples remain aligned with reviewed OpenAPI schemas | `API_EXAMPLES.md`; `API_CONTRACT_CATALOGUE.md` | P01-W02 onward | API-EXAMPLE-001 schema validation in CI |
 
+## Phase 00 scaffolding traceability (P00-W03-T01, P00-W04-T01)
+
+These test IDs exist as executable tests in the repository, not planned names. They verify
+engineering scaffolding only; no product requirement is claimed as implemented.
+
+| Test ID | Verifies | Test location |
+|---|---|---|
+| `ARCH-BOUNDARY-001` | Approved module list in code matches `docs/01-architecture/MODULAR_BOUNDARIES.md` | `backend/tests/PhoneShopErp.Architecture.Tests/ModuleBoundaryTests.cs` |
+| `ARCH-BOUNDARY-002` | API host does not reference an unapproved project/module | same |
+| `ARCH-BOUNDARY-003` | Module assemblies use approved owner names and layers | same |
+| `ARCH-BOUNDARY-004` | No module references another module's non-`Contracts` assembly | same |
+| `ARCH-BOUNDARY-005` | `*.Domain` assemblies do not reference database/UI/provider SDKs | same |
+| `API-HOST-001` | Liveness probe works with no infrastructure | `backend/tests/PhoneShopErp.Api.Integration.Tests/ApiHostTests.cs` |
+| `API-HOST-002` | Unknown route returns RFC 9457 problem details | same |
+
+Related task IDs: `P00-W03-T01` (solution skeleton), `P00-W04-T01` (developer environment and
+CI baseline). Contract, schema, permission and migration evidence (FS-001 … FS-008) remains
+`Not implemented` in `docs/13-audit-remediation/FIRST_SLICE_TRACEABILITY.md`.
+
 ## Required per-requirement implementation record
 
 For every row above and every original requirement, maintain:

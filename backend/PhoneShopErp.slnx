@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PhoneShopErp.Api/PhoneShopErp.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PhoneShopErp.Api.Integration.Tests/PhoneShopErp.Api.Integration.Tests.csproj" />
+    <Project Path="tests/PhoneShopErp.Architecture.Tests/PhoneShopErp.Architecture.Tests.csproj" />
+  </Folder>
+</Solution>

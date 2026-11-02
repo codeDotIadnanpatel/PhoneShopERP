@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>PhoneShopErp.Api</RootNamespace>
+    <!--
+      Composition root of the modular monolith (ADR-0004).
+      This project must stay free of business rules: it wires modules and exposes
+      transport concerns only.
+    -->
+    <UserSecretsId>phoneshoperp-api-local</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      No project references yet. Modules are added here only after their owning
+      phase starts and the relevant architecture gate (AG-01, AG-02, ...) is
+      approved. See backend/README.md and
+      docs/01-architecture/MODULAR_BOUNDARIES.md.
+    -->
+  </ItemGroup>
+
+</Project>

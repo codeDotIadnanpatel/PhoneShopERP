@@ -7,7 +7,8 @@
 ## Read in this order
 1. `AUDIT_REMEDIATION_PLAN.md` — audit findings and required corrections.
 2. `DECISION_REGISTER.md` — decisions to approve, defer or reject.
-3. `FIRST_SLICE_TRACEABILITY.md` — traceability baseline for the first vertical slice.
+3. `decision-papers/README.md` — proposed option analyses for `D-001`–`D-003` (not approved).
+4. `FIRST_SLICE_TRACEABILITY.md` — traceability baseline for the first vertical slice.
 
 ## Rules
 - Preserve accepted decisions in `DECISIONS.md` and `AGENTS.md`.

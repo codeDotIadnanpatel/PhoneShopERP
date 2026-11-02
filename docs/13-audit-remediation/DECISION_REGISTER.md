@@ -8,9 +8,9 @@ Use this register for unresolved decisions that affect architecture or business 
 
 | ID | Decision | Required outcome | Affected areas | Required by | Status | Owner / approver |
 |---|---|---|---|---|---|---|
-| D-001 | Tenant context and RLS session propagation | Define trusted tenant/user/branch context, transaction scoping, connection pooling safety and bypass controls | API, DB, jobs, exports | First tenant-owned persistence | Open | Assign |
-| D-002 | Identity and session lifecycle | Select identity approach; define MFA, token/session expiry, revocation, service identities and recovery | API, portals, WPF, mobile | Authenticated platform slice | Open | Assign |
-| D-003 | Physical database conventions | Approve naming, key types, tenant-safe FK/unique constraints, audit columns, soft-delete/retention and migration policy | All backend modules | First migration | Open | Assign |
+| D-001 | Tenant context and RLS session propagation | Define trusted tenant/user/branch context, transaction scoping, connection pooling safety and bypass controls | API, DB, jobs, exports | First tenant-owned persistence | In review [Paper](decision-papers/D-001-tenant-context-and-rls.md) | Assign |
+| D-002 | Identity and session lifecycle | Select identity approach; define MFA, token/session expiry, revocation, service identities and recovery | API, portals, WPF, mobile | Authenticated platform slice | In review [Paper](decision-papers/D-002-identity-and-session-lifecycle.md) | Assign |
+| D-003 | Physical database conventions | Approve naming, key types, tenant-safe FK/unique constraints, audit columns, soft-delete/retention and migration policy | All backend modules | First migration | In review [Paper](decision-papers/D-003-physical-database-conventions.md) | Assign |
 | D-004 | Product/device identifier policy | Define IMEI normalization, dual-SIM IMEI handling, serial uniqueness scope, identifier history and duplicate resolution | Catalogue, inventory, receiving, POS | Serialized inventory | Open | Assign |
 | D-005 | Stock ledger and transaction boundaries | Define immutable movement events, balance projection rules, concurrency/locking and correction/reversal process | Inventory, purchasing, POS | First stock movement | Open | Assign |
 | D-006 | Inventory costing | Select costing method by stock class; define landed cost, trade-in cost, return cost and valuation adjustments | Inventory, purchasing, accounting | Before valuation/COGS | Open | Assign + finance review |
@@ -24,6 +24,17 @@ Use this register for unresolved decisions that affect architecture or business 
 | D-014 | SaaS entitlement and grace behaviour | Define plan entitlements, usage enforcement, billing webhook handling, grace/read-only/export states | SaaS, API, portals | Before commercial billing | Open | Assign |
 | D-015 | Production topology and service objectives | Define region/data residency, workload model, SLO, RPO/RTO, backup retention and support coverage | Platform, operations | Before pilot | Open | Assign |
 | D-016 | Data retention and privacy lifecycle | Define retention/deletion/anonymisation/export/legal-hold rules by data class and jurisdiction | CRM, repairs, audit, files | Before production data | Open | Assign + privacy/legal review |
+
+`In review` records that a written option analysis exists in
+`decision-papers/`; it does not approve, reserve or pre-commit anything. The linked papers are
+`PROPOSED — NOT APPROVED` and remain inputs to the decision.
+
+## Working papers
+
+- [`decision-papers/D-001-tenant-context-and-rls.md`](decision-papers/D-001-tenant-context-and-rls.md)
+- [`decision-papers/D-002-identity-and-session-lifecycle.md`](decision-papers/D-002-identity-and-session-lifecycle.md)
+- [`decision-papers/D-003-physical-database-conventions.md`](decision-papers/D-003-physical-database-conventions.md)
+- [`decision-papers/README.md`](decision-papers/README.md) — status, approval order and rules
 
 ## Decision record template
 
