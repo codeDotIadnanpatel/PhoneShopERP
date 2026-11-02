@@ -19,6 +19,15 @@ not a substitute for one.
 ADR numbers are **reserved suggestions**, not allocated. Confirm against `DECISIONS.md` before
 use; the two papers that follow may shift the numbering.
 
+## Known defects to resolve before approval
+
+An independent review of these three papers is recorded in
+[`../PHASE_00_BRANCH_REVIEW.md`](../PHASE_00_BRANCH_REVIEW.md) §3.3. It logs fifteen defect
+entries, `DP-01` … `DP-15`, against the proposals below. Read that register before the approval
+session: several entries are internal contradictions (currency type, global reference data,
+UUID generation, audit read policy) that must be resolved in the paper text first. The findings
+do **not** change any paper's status. Every paper remains `PROPOSED — NOT APPROVED`.
+
 ## Suggested approval order
 
 D-003 fixes key types, roles, naming and migration mechanics; D-001 depends on D-003 for those

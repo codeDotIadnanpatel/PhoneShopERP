@@ -1,7 +1,7 @@
 # Documentation and Repository Index
 
 **Package version:** v1.5  
-**Files indexed:** 139 (all repository files; excludes this index itself)
+**Files indexed:** 141 (all repository files; excludes this index itself)
 
 Paths below are relative to this file (`docs/INDEX.md`).
 
@@ -95,6 +95,7 @@ Paths below are relative to this file (`docs/INDEX.md`).
 - [`docs/10-development-execution/DEPENDENCY_MAP.md`](10-development-execution/DEPENDENCY_MAP.md)
 - [`docs/10-development-execution/DEVELOPER_SETUP.md`](10-development-execution/DEVELOPER_SETUP.md)
 - [`docs/10-development-execution/DEVELOPMENT_EXECUTION_PLAN.md`](10-development-execution/DEVELOPMENT_EXECUTION_PLAN.md)
+- [`docs/10-development-execution/PHASE_00_COMPLETION_CHECKLIST.md`](10-development-execution/PHASE_00_COMPLETION_CHECKLIST.md)
 - [`docs/10-development-execution/PHASE_00_PROJECT_PREPARATION.md`](10-development-execution/PHASE_00_PROJECT_PREPARATION.md)
 - [`docs/10-development-execution/PHASE_01_PLATFORM_FOUNDATION.md`](10-development-execution/PHASE_01_PLATFORM_FOUNDATION.md)
 - [`docs/10-development-execution/PHASE_02_PRODUCTS_INVENTORY.md`](10-development-execution/PHASE_02_PRODUCTS_INVENTORY.md)
@@ -136,6 +137,7 @@ Paths below are relative to this file (`docs/INDEX.md`).
 - [`docs/13-audit-remediation/decision-papers/D-003-physical-database-conventions.md`](13-audit-remediation/decision-papers/D-003-physical-database-conventions.md)
 - [`docs/13-audit-remediation/decision-papers/README.md`](13-audit-remediation/decision-papers/README.md)
 - [`docs/13-audit-remediation/FIRST_SLICE_TRACEABILITY.md`](13-audit-remediation/FIRST_SLICE_TRACEABILITY.md)
+- [`docs/13-audit-remediation/PHASE_00_BRANCH_REVIEW.md`](13-audit-remediation/PHASE_00_BRANCH_REVIEW.md)
 - [`docs/13-audit-remediation/README.md`](13-audit-remediation/README.md)
 - [`IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md)
 - [`PRODUCT_SPECIFICATION.md`](../PRODUCT_SPECIFICATION.md)
