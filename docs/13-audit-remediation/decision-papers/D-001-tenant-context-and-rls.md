@@ -5,6 +5,10 @@
 > ADR or policy. Under `DECISION_REGISTER.md`, an AI agent may recommend an option but must
 > not approve business, accounting, legal or security policy. Nothing in this document
 > authorises implementation until an authorised human approver records the outcome.
+>
+> **Revision 2 (2026-11-02):** DP-02, DP-04, DP-06, DP-07, DP-08, DP-09 and DP-13 from
+> `../PHASE_00_BRANCH_REVIEW.md` §3.3 are resolved in this text. Summary of changes in §12.
+> Nothing here is approved by the revision.
 
 | Field | Value |
 |---|---|
@@ -90,8 +94,19 @@ database or role. This follows ADR-0004 and keeps small-tenants affordable (C7).
 **R2 — `tenant_id uuid NOT NULL` on every tenant-owned table.** Ownership of legal entity,
 branch, location and register is stored explicitly (`legal_entity_id`, `branch_id`,
 `location_id`, `register_id`) where the domain model defines it, never derived at query time.
-Platform-global reference data (country, currency) lives outside tenant scope in the
-`platform` schema and deliberately has **no** `tenant_id` and **no** RLS.
+
+Three object classes, with different rules (the corrected form of DP-02):
+
+| Class | Where | `tenant_id` | RLS |
+|---|---|---|---|
+| Tenant-owned business data | module schemas | `NOT NULL` | enabled + forced |
+| Vendor-owned global reference data (country, currency, tax category) | `platform` | **absent** | not applicable; read-only grants |
+| Cross-cutting tenant infrastructure (audit, outbox, inbox) | `platform` | `NOT NULL` | enabled + forced |
+| Platform-scoped security records containing no tenant business payload | `platform` | absent | not applicable; restricted role |
+
+**No table contains a nullable `tenant_id`, and no tenant-owned table contains "global" rows.**
+Reference data that tenants extend is a tenant-owned table seeded at provisioning (D-003 R7),
+not a shared row with a null tenant.
 
 **R3 — RLS on every tenant-owned table, forced.** Each table gets
 `ENABLE ROW LEVEL SECURITY` **and** `FORCE ROW LEVEL SECURITY` (so the table owner is also
@@ -107,16 +122,65 @@ CREATE POLICY tenant_isolation ON <schema>.<table>
 often connects as owner. `USING` protects reads/updates/deletes; `WITH CHECK` protects inserts
 and tenant reassignment.
 
-**R4 — Fail loudly on missing context.** `platform.current_tenant_id()` reads
-`current_setting('app.tenant_id', true)`; if empty, malformed or not a UUID it raises
-`insufficient_privilege` (`42501`). A missing tenant context is a security defect, not an
-empty result set.
+**R3a — Grants that make the policy usable (DP-09).** RLS is evaluated with the *invoking*
+role's privileges, so a policy that calls a helper fails unless the role may execute it. Each
+migration that creates a tenant-owned table also emits:
+
+```sql
+GRANT USAGE ON SCHEMA <module> TO erp_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON <module>.<table> TO erp_app;   -- append-only tables: no UPDATE/DELETE
+GRANT USAGE ON SCHEMA platform TO erp_app;
+GRANT EXECUTE ON FUNCTION platform.current_tenant_id() TO erp_app;
+GRANT EXECUTE ON FUNCTION platform.current_user_id()    TO erp_app;
+GRANT EXECUTE ON FUNCTION platform.try_current_tenant_id() TO erp_app;
+GRANT SELECT ON platform.country, platform.currency, platform.tax_category TO erp_app;
+GRANT SELECT, INSERT ON platform.audit_event TO erp_app;               -- never UPDATE/DELETE
+REVOKE ALL ON FUNCTION platform.current_tenant_id() FROM PUBLIC;       -- and the other helpers
+ALTER DEFAULT PRIVILEGES FOR ROLE erp_owner IN SCHEMA <module>
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO erp_app;
+```
+
+`erp_migrator` receives `USAGE` on every schema, `EXECUTE` on `platform.tenant_ids()` and on the
+context helpers, and nothing else. `PUBLIC` receives nothing.
+
+**R4 — Fail loudly on missing context; two context helpers (DP-06, DP-13).**
+
+```sql
+CREATE FUNCTION platform.current_tenant_id() RETURNS uuid
+    LANGUAGE plpgsql STABLE SECURITY INVOKER
+    SET search_path = pg_catalog, platform AS $$
+DECLARE v text := current_setting('app.tenant_id', true);
+BEGIN
+    IF v IS NULL OR v = '' THEN
+        RAISE EXCEPTION 'tenant context is not set' USING ERRCODE = '42501';
+    END IF;
+    RETURN v::uuid;              -- malformed value raises 22P02: still an error, never "no rows"
+END $$;
+
+CREATE FUNCTION platform.current_user_id() RETURNS uuid ...  -- same pattern on app.user_id
+
+CREATE FUNCTION platform.try_current_tenant_id() RETURNS uuid
+    LANGUAGE sql STABLE SECURITY INVOKER
+    SET search_path = pg_catalog, platform AS $$
+    SELECT NULLIF(current_setting('app.tenant_id', true), '')::uuid
+$$;
+```
+
+* `current_tenant_id()` and `current_user_id()` **raise** when context is missing.
+* `try_current_tenant_id()` returns `NULL` instead, and exists for exactly one purpose: the
+  membership-bootstrap policy in R8a, where a `NULL` tenant is a legitimate pre-login state.
+  It must not be used in business-table policies (CI lint enforces this).
+* Both are `STABLE`, `SECURITY INVOKER`, schema-qualified, and revoked from `PUBLIC`. If a
+  benchmark shows measurable per-row cost on the hottest tables, those specific policies may
+  inline `current_setting('app.tenant_id', true)::uuid`, with the same fail-closed semantics and
+  a note in the table's migration.
 
 **R5 — Transaction-local context, always.** Every tenant-scoped unit of work begins with:
 
 ```sql
 BEGIN;
 SELECT set_config('app.tenant_id', $1, /* is_local */ true);
+SELECT set_config('app.user_id',   $2, /* is_local */ true);
 -- ... work ...
 COMMIT;
 ```
@@ -125,63 +189,106 @@ COMMIT;
 safe with PgBouncer transaction pooling. Session-level `SET` and `SET ROLE` are prohibited in
 application code and must be blocked by review plus a test that scans for them.
 
-**R6 — One enforced unit-of-work boundary.** No tenant-scoped query may run on an implicit
-connection without a transaction. Concretely: all data access goes through the module
+**R6 — One enforced unit-of-work boundary, ORM-neutral (DP-04).** No tenant-scoped query may run
+on an implicit connection without a transaction. All data access goes through the module
 repository/unit-of-work abstraction, which opens the transaction and sets context before any
-statement; EF Core interceptors assert that a transaction exists and that context was set on
-the current connection before the first command. A data-access call outside the boundary is
-an error, not a warning.
+statement. A data-access call outside the boundary is an error, not a warning.
 
-**R7 — Four database roles, least privilege.** No application path connects as the schema
-owner or a superuser.
+The concrete data-access technology (EF Core, Dapper, hand-written SQL) is an **engineering
+decision**, recorded separately from this paper, and does not change the security property:
+RLS is the guarantee, and the application filter is defence in depth. If EF Core is used, global
+query filters and a `SaveChanges` interceptor are the recommended implementation; if Dapper or
+SQL is used, the repository boundary must apply the same tenant predicate. Either way the
+security tests in §7 are identical and must pass with the ORM disabled.
+
+**R7 — Four database roles, least privilege.** No application path connects as the schema owner
+or a superuser.
 
 | Role | Rights | Used by |
 |---|---|---|
-| `erp_owner` | Owns schemas/tables; `NOLOGIN` | Nobody at runtime; ownership anchor only |
-| `erp_migrator` | DDL; may `SET ROLE erp_owner`; no `BYPASSRLS` | Migration job only |
-| `erp_app` | `SELECT/INSERT/UPDATE/DELETE` on module tables; **no DDL, no `BYPASSRLS`, no `SET ROLE`** | API, workers, exports |
-| `erp_platform_admin` | `BYPASSRLS`, tightly scoped grants | Platform operations only, every use audited |
+| `erp_owner` | Owns schemas/tables; `NOLOGIN`; subject to `FORCE RLS` like everyone else | Nobody at runtime; ownership anchor only |
+| `erp_migrator` | `LOGIN` for the migration job only; member of `erp_owner` and may `SET ROLE erp_owner` for DDL; **no `BYPASSRLS`** | Migration job only |
+| `erp_app` | `SELECT/INSERT/UPDATE/DELETE` on granted module tables; `EXECUTE` on context helpers; **no DDL, no `BYPASSRLS`, no `SET ROLE`** | API, workers, exports |
+| `erp_platform_admin` | `BYPASSRLS`, tightly scoped grants, separate connection string and credentials | Platform operations only, every use audited |
 
-**R8 — Tenant identity from authority only.** The tenant id is taken from the validated
-authentication/session context after a server-side membership check against
-`identity.membership` (see D-002). A tenant id in a request body, query string, header
-or JWT claim that does not match an active membership is rejected with `403` and audited;
-it is never used to build context. A user belonging to several tenants must select one
-explicitly; the selected tenant is part of the session, not of each request payload.
+`erp_migrator` can create and alter objects because DDL is not subject to RLS, but it cannot read
+tenant rows without context. Data backfills follow R10 of D-003: per-tenant transactions using
+`platform.tenant_ids()`, never a disabled policy.
 
-**R9 — Immutable `TenantContext`.** A scoped, immutable service holds tenant, user, legal
-entity/branch scope and correlation id. Setting it twice, mutating it, or reading it before
-resolution throws. Background work items carry the originating tenant id explicitly and
-re-establish context in the worker; no ambient/static tenant state.
+**R8 — Tenant identity from authority only, never from a token claim (DP-06).** The tenant id is
+taken from the **server-side session record** after a membership check against
+`identity.membership` (see D-002). It is never read from a request body, query string, header or
+JWT claim. The access token identifies the subject and the session (`sub`, `sid`); the session
+record supplies the tenant. A tenant id supplied anywhere in the request is rejected with `403`
+and audited; it is never used to build context. A user belonging to several tenants must select
+one explicitly (R8a); the selected tenant is part of the session, not of each request payload.
 
-**R10 — Application-layer defence in depth.** EF Core global query filters on `tenant_id`
-and a `SaveChanges` interceptor that rejects any inserted/updated row whose `tenant_id`
-differs from the active context, or whose tenant-owned FK points outside the tenant. RLS is
-the backstop; the filter is the primary path and the performance path.
+**R8a — Multi-tenant login bootstrap (DP-06).** Membership resolution happens before tenant
+context exists, so `identity.membership` is the **only** table with a pre-tenant read policy:
+
+```sql
+-- identity.membership, read policy
+USING (
+    tenant_id = platform.try_current_tenant_id()
+    OR user_id = platform.current_user_id()
+)
+-- write policy
+WITH CHECK (tenant_id = platform.current_tenant_id())
+```
+
+Sequence:
+
+1. Validate the access token → `sub`, `sid`.
+2. `BEGIN; set_config('app.user_id', sub, true);` — set from the validated token only.
+3. Read the subject's active memberships. A user sees only their own rows pre-tenant; inside a
+   tenant session they also see that tenant's memberships, which administration screens need.
+4. If exactly one active membership, select it; otherwise return the list and require an explicit
+   choice. Find-or-create the `identity.session` row with `tenant_id`, `membership_id` and the
+   membership's current `permission_version`.
+5. `COMMIT`. Subsequent transactions set both `app.tenant_id` and `app.user_id`.
+
+The residual risk is explicit: PostgreSQL cannot verify a token, so the application must set
+`app.user_id` only from a validated token. That rule is covered by an integration test and a
+static check, and it is the same trust boundary that already exists for `app.tenant_id`.
+
+**R9 — Immutable `TenantContext`.** A scoped, immutable service holds tenant, membership, user,
+legal entity/branch scope, permission version and correlation id. Setting it twice, mutating it,
+or reading it before resolution throws. Background work items carry the originating tenant and
+membership ids explicitly and re-establish context in the worker; no ambient/static tenant state.
+
+**R10 — Application-layer defence in depth.** A tenant predicate on every tenant-owned query and
+a write-time check that rejects any inserted/updated row whose `tenant_id` differs from the
+active context, or whose tenant-owned FK points outside the tenant. RLS is the backstop; the
+filter is the primary path and the performance path. The concrete mechanism follows R6.
 
 **R11 — Jobs, exports, reports, files and caches.** Workers iterate tenants explicitly and
 process one tenant per transaction; a platform-wide read model is a separate, audited
 `erp_platform_admin` consumer, never a normal API code path. Exports run under the requester's
 tenant context. Cache keys are `tenant:{tenant_id}:…`; a cache entry without a tenant segment
-is a defect. Object-storage paths are tenant-prefixed and access is checked, not
-path-guessed.
+is a defect. Object-storage paths are tenant-prefixed and access is checked, not path-guessed.
 
-**R12 — Every context establishment and every bypass is audited.** Record tenant, actor,
-correlation id, operation and outcome. `erp_platform_admin` use additionally records reason
-and approval reference.
+**R12 — Every context establishment and every bypass is audited; audit reads are tenant-scoped
+(DP-07).** `platform.audit_event` carries `tenant_id NOT NULL` with the standard tenant policy:
+a tenant reads only its own audit history, inserts are append-only, and `UPDATE`/`DELETE` are not
+granted to any application role. Platform-wide access uses `erp_platform_admin` and records
+reason and approval reference. Events that occur before a tenant can be identified (unknown
+account, IdP outage, migration run) go to `platform.security_event`, which contains no tenant
+business payload and is readable only by platform operators.
 
 ## 5. Implementation shape
 
 ```
 HTTP request
-  → authentication (D-002) validates token, yields subject
-  → membership lookup: subject + tenant  ──► 403 + audit on mismatch
+  → authentication (D-002) validates token → sub, sid
+  → session lookup (sid) → tenant_id, membership_id, permission_version
+  → membership check: active membership for (sub, tenant) ──► 403 + audit on mismatch
   → TenantContext (immutable, scoped)
   → use case / repository
       → UnitOfWork.Begin()
           → set_config('app.tenant_id', …, true)
-          → EF query (global filter on tenant_id) → RLS re-checks
-          → SaveChanges interceptor validates tenant_id
+          → set_config('app.user_id',   …, true)
+          → query with tenant predicate → RLS re-checks
+          → write-time tenant/FK validation
       → Commit()
   → audit event
 ```
@@ -190,14 +297,14 @@ HTTP request
 
 | Dimension | Impact |
 |---|---|
-| **Modules** | Every module's data access must use the shared unit-of-work; module-local `DbContext`/repository code cannot open raw connections. `platform` owns the context helper and the audit/idempotency tables. |
-| **Data / schema** | `tenant_id` (and explicit entity/branch columns) on every tenant-owned table; `UNIQUE (tenant_id, id)` on parents to allow composite tenant-safe FKs (D-003); RLS policy + grants created in the same migration as the table. |
-| **API** | Tenant is never a required request field; tenant switching is an explicit session operation; cross-tenant identifiers return `404`/`403` without confirming existence. |
+| **Modules** | Every module's data access must use the shared unit-of-work; module-local data access cannot open raw connections. `platform` owns the context helpers and the audit/idempotency tables. |
+| **Data / schema** | `tenant_id` (and explicit entity/branch columns) on every tenant-owned table; `UNIQUE (tenant_id, id)` on parents to allow composite tenant-safe FKs (D-003); RLS policy + grants + trigger created in the same migration as the table. |
+| **API** | Tenant is never a request field and never a token claim; tenant switching is an explicit session operation; cross-tenant identifiers return `404`/`403` without confirming existence. |
 | **Permissions** | Tenant boundary is enforced by RLS; legal-entity/branch/location scope remains an application authorization concern (`PERMISSION_MATRIX.md` scopes). Both must be tested. |
 | **Accounting** | Journals and subledgers inherit tenant isolation; posting jobs must run per tenant; a platform-wide consolidation report is a separate audited path. |
 | **Offline** | Local SQLite is single-tenant by binding; sync commands carry the device's tenant and are validated server-side. Offline write scope is **not** authorised here (D-012, D-013). |
 | **Reporting** | Tenant reports run under `erp_app` + context. Cross-tenant platform analytics require the audited bypass role and must not expose tenant-identifying business detail without a separate privacy decision. |
-| **Migration** | New tables ship with RLS in the same migration. Enabling RLS on an existing table requires backfill of `tenant_id` first. CI contains an RLS-coverage test over `pg_class`/`pg_policies`. |
+| **Migration** | New tables ship with RLS, grants and the version trigger in the same migration. Data backfills run per tenant under RLS; RLS is never disabled. CI contains an RLS-coverage test over `pg_class`/`pg_policies`. |
 | **Operations** | Connection strings are per-role; the app role cannot run DDL. Pooling mode must be documented (session vs. transaction) and load-tested for context leakage. |
 
 ## 7. Verification required to close D-001
@@ -207,9 +314,14 @@ HTTP request
 | Direct SQL connection as `erp_app` with tenant A context cannot read/write tenant B rows | Integration test |
 | Same physical pooled connection serves tenant A then tenant B with no residue | Integration test |
 | Missing context raises `42501`, not zero rows | Integration test |
-| Insert with mismatched `tenant_id` is rejected by `WITH CHECK` and by the interceptor | Integration test |
+| Insert with mismatched `tenant_id` is rejected by `WITH CHECK` and by the application check | Integration test |
 | Cross-tenant FK/identifier manipulation via API returns `403`/`404` and audits | API negative test |
-| Every table with `tenant_id` has `relrowsecurity` and `relforcerowsecurity` and ≥ 1 policy | CI catalog query |
+| Every table with `tenant_id` has `relrowsecurity`, `relforcerowsecurity` and ≥ 1 policy | CI catalog query |
+| `try_current_tenant_id()` appears in no policy except `identity.membership` | CI lint |
+| `erp_app` can execute the helpers and read the reference tables; `PUBLIC` cannot | Grant test |
+| User A cannot see user B's memberships with `app.user_id = A`; no `app.user_id` raises | Integration test |
+| A tenant can read only its own audit events; `erp_app` cannot update or delete audit rows | Integration test |
+| A data-migration backfill cannot touch another tenant | CI migration job |
 | Job, export and report paths deny cross-tenant access | Integration test |
 | `SET`/`SET ROLE`/`BYPASSRLS` usage outside the approved role is absent from code | Static check |
 
@@ -220,10 +332,11 @@ HTTP request
 2. **Support access model:** `SECURITY_BASELINE.md` forbids silent impersonation. Does support
    use the audited `erp_platform_admin` bypass, or tenant-consented, tenant-visible
    impersonation sessions? This changes the audit and consent schema.
-3. **Platform-global rows:** confirm that reference data (countries, currencies, tax
-   categories owned by the vendor) lives in `platform` with no `tenant_id` and no RLS.
-4. **Audit table policy:** should the audit table itself be tenant-RLS protected for reads?
-   Recommendation: yes for reads, inserts restricted to the platform role.
+3. **Vendor-owned reference data:** confirm the three-way split in R2 — global reference tables
+   in `platform` without `tenant_id`, no nullable `tenant_id` anywhere.
+4. **Audit read policy:** confirm tenant-scoped RLS on `platform.audit_event` reads with
+   append-only grants, and a separate platform-only `security_event` table for pre-tenant
+   events. (Recommended; this is now part of the proposal rather than an open question.)
 5. **Pooling mode:** confirm PgBouncer transaction pooling at launch, or direct connections.
 
 ## 9. Draft ADR (paste only after approval)
@@ -232,19 +345,24 @@ HTTP request
 ## ADR-0012 — Tenant context and RLS enforcement
 
 - **Status:** Proposed (awaiting approval)
-- **Decision:** Shared PostgreSQL database and tables; `tenant_id` on every tenant-owned row;
-  `ENABLE` + `FORCE` ROW LEVEL SECURITY with a `tenant_isolation` policy on
-  `tenant_id = platform.current_tenant_id()`; transaction-local context via
-  `set_config('app.tenant_id', …, true)`; fail-closed helper that raises on missing context;
-  least-privilege roles (`erp_owner`, `erp_migrator`, `erp_app`, `erp_platform_admin`);
-  tenant identity resolved only from validated authentication plus server-side membership.
-  RLS enforces the tenant boundary only; legal-entity/branch/location scope is application
-  authorization enforced and tested separately.
+- **Decision:** Shared PostgreSQL database and tables; `tenant_id NOT NULL` on every
+  tenant-owned row and never nullable; `ENABLE` + `FORCE` ROW LEVEL SECURITY with a
+  `tenant_isolation` policy on `tenant_id = platform.current_tenant_id()`; transaction-local
+  context via `set_config('app.tenant_id'|'app.user_id', …, true)`; fail-closed helpers that
+  raise on missing context, plus a NULL-returning helper used only by the membership-bootstrap
+  policy; least-privilege roles (`erp_owner`, `erp_migrator`, `erp_app`,
+  `erp_platform_admin`) with the grants required by the policies; tenant identity resolved only
+  from a validated token plus server-side session and membership, never from a request field or
+  token claim. RLS enforces the tenant boundary only; legal-entity/branch/location scope is
+  application authorization enforced and tested separately. Audit rows are tenant-scoped and
+  append-only; pre-tenant security events live in a platform-only table.
 - **Options rejected:** session-level `SET`, per-tenant roles/schemas, application-only
-  filtering, and branch/entity predicates inside RLS for the first slice (see D-001 paper §3).
+  filtering, branch/entity predicates inside RLS for the first slice, and nullable `tenant_id`
+  reference rows (see D-001 paper §3).
 - **Consequences:** every tenant-scoped unit of work must be transaction-wrapped; every
-  tenant-owned migration must include RLS and grants; jobs/exports/caches must carry tenant
-  scope; CI enforces RLS coverage and cross-tenant negative tests.
+  tenant-owned migration must include RLS, grants and the version trigger; jobs/exports/caches
+  must carry tenant scope; data migrations run per tenant; CI enforces RLS coverage and
+  cross-tenant negative tests.
 - **Approval:** approver role, name, date and evidence to be recorded here.
 - **Revisit trigger:** introduction of a dedicated-database tenant tier, a confirmed
   branch-scope leak class, or a change in pooling topology.
@@ -266,6 +384,7 @@ HTTP request
 `docs/01-architecture/MODULAR_BOUNDARIES.md`;
 `docs/02-functional-specifications/TENANTS_AND_BRANCHES.md`;
 `docs/04-data-and-api/DATABASE_DESIGN.md`; `docs/04-data-and-api/API_STANDARDS.md`;
+`docs/04-data-and-api/AUDIT_AND_RETENTION.md`;
 `docs/05-security-and-compliance/SECURITY_BASELINE.md`;
 `docs/11-engineering-design/ARCHITECTURE_GATES.md` (AG-01);
 `docs/11-engineering-design/DATABASE_DOMAIN_MODEL.md`;
@@ -273,3 +392,15 @@ HTTP request
 `docs/12-engineering-readiness/PERMISSION_MATRIX.md`;
 `docs/12-engineering-readiness/TESTING_STRATEGY.md`;
 `docs/13-audit-remediation/FIRST_SLICE_TRACEABILITY.md`.
+
+## 12. Revision 2 change log (DP resolutions)
+
+| DP | Was | Now |
+|---|---|---|
+| DP-02 | Global reference data `no tenant_id` (D-001) vs nullable `tenant_id` (D-003) | Three-way object classification in R2; no nullable `tenant_id`; tenant-extensible data seeded per tenant |
+| DP-04 | EF Core query filters/interceptors presented as the enforcement mechanism | R6 is ORM-neutral: unit-of-work + database RLS are the guarantee; the ORM is an engineering choice |
+| DP-06 | Login bootstrap undefined; tenant implied from token claim | R8/R8a: tenant comes from the session record; membership bootstrap uses `app.user_id` and the only pre-tenant policy; explicit tenant selection |
+| DP-07 | Audit read policy deferred; `platform` described as having no RLS | R12: `platform.audit_event` is tenant-RLS and append-only; `platform.security_event` is platform-only and carries no tenant business payload |
+| DP-08 | `FORCE` RLS + migrator with no context path | R7 clarifies DDL is not subject to RLS; data migrations run per tenant via `platform.tenant_ids()`; RLS is never disabled |
+| DP-09 | `USAGE`/`EXECUTE` grants unstated | R3a specifies schema `USAGE`, helper `EXECUTE`, reference `SELECT`, audit `INSERT/SELECT`, `PUBLIC` revocation and default privileges |
+| DP-13 | Helper language/volatility unspecified | R4: `STABLE`, `SECURITY INVOKER`, schema-qualified, benchmark note, and a documented inline fallback |

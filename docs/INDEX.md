@@ -1,7 +1,7 @@
 # Documentation and Repository Index
 
 **Package version:** v1.5  
-**Files indexed:** 141 (all repository files; excludes this index itself)
+**Files indexed:** 143 (all repository files; excludes this index itself)
 
 Paths below are relative to this file (`docs/INDEX.md`).
 
@@ -97,6 +97,7 @@ Paths below are relative to this file (`docs/INDEX.md`).
 - [`docs/10-development-execution/DEVELOPMENT_EXECUTION_PLAN.md`](10-development-execution/DEVELOPMENT_EXECUTION_PLAN.md)
 - [`docs/10-development-execution/PHASE_00_COMPLETION_CHECKLIST.md`](10-development-execution/PHASE_00_COMPLETION_CHECKLIST.md)
 - [`docs/10-development-execution/PHASE_00_PROJECT_PREPARATION.md`](10-development-execution/PHASE_00_PROJECT_PREPARATION.md)
+- [`docs/10-development-execution/PHASE_01_IMPLEMENTATION_BACKLOG.md`](10-development-execution/PHASE_01_IMPLEMENTATION_BACKLOG.md)
 - [`docs/10-development-execution/PHASE_01_PLATFORM_FOUNDATION.md`](10-development-execution/PHASE_01_PLATFORM_FOUNDATION.md)
 - [`docs/10-development-execution/PHASE_02_PRODUCTS_INVENTORY.md`](10-development-execution/PHASE_02_PRODUCTS_INVENTORY.md)
 - [`docs/10-development-execution/PHASE_03_PURCHASING.md`](10-development-execution/PHASE_03_PURCHASING.md)
@@ -112,9 +113,9 @@ Paths below are relative to this file (`docs/INDEX.md`).
 - [`docs/11-engineering-design/API_CONTRACT_CATALOGUE.md`](11-engineering-design/API_CONTRACT_CATALOGUE.md)
 - [`docs/11-engineering-design/API_EXAMPLES.md`](11-engineering-design/API_EXAMPLES.md)
 - [`docs/11-engineering-design/ARCHITECTURE_GATES.md`](11-engineering-design/ARCHITECTURE_GATES.md)
-- [`docs/11-engineering-design/DATA_MIGRATION_STRATEGY.md`](11-engineering-design/DATA_MIGRATION_STRATEGY.md)
 - [`docs/11-engineering-design/DATABASE_DOMAIN_MODEL.md`](11-engineering-design/DATABASE_DOMAIN_MODEL.md)
 - [`docs/11-engineering-design/DATABASE_RELATIONSHIPS.md`](11-engineering-design/DATABASE_RELATIONSHIPS.md)
+- [`docs/11-engineering-design/DATA_MIGRATION_STRATEGY.md`](11-engineering-design/DATA_MIGRATION_STRATEGY.md)
 - [`docs/11-engineering-design/HARDWARE_INTEGRATION.md`](11-engineering-design/HARDWARE_INTEGRATION.md)
 - [`docs/11-engineering-design/NON_FUNCTIONAL_REQUIREMENTS.md`](11-engineering-design/NON_FUNCTIONAL_REQUIREMENTS.md)
 - [`docs/11-engineering-design/OFFLINE_SYNC_PROTOCOL.md`](11-engineering-design/OFFLINE_SYNC_PROTOCOL.md)
@@ -131,13 +132,14 @@ Paths below are relative to this file (`docs/INDEX.md`).
 - [`docs/12-engineering-readiness/RELEASE_GATES.md`](12-engineering-readiness/RELEASE_GATES.md)
 - [`docs/12-engineering-readiness/TESTING_STRATEGY.md`](12-engineering-readiness/TESTING_STRATEGY.md)
 - [`docs/13-audit-remediation/AUDIT_REMEDIATION_PLAN.md`](13-audit-remediation/AUDIT_REMEDIATION_PLAN.md)
-- [`docs/13-audit-remediation/DECISION_REGISTER.md`](13-audit-remediation/DECISION_REGISTER.md)
 - [`docs/13-audit-remediation/decision-papers/D-001-tenant-context-and-rls.md`](13-audit-remediation/decision-papers/D-001-tenant-context-and-rls.md)
 - [`docs/13-audit-remediation/decision-papers/D-002-identity-and-session-lifecycle.md`](13-audit-remediation/decision-papers/D-002-identity-and-session-lifecycle.md)
 - [`docs/13-audit-remediation/decision-papers/D-003-physical-database-conventions.md`](13-audit-remediation/decision-papers/D-003-physical-database-conventions.md)
 - [`docs/13-audit-remediation/decision-papers/README.md`](13-audit-remediation/decision-papers/README.md)
+- [`docs/13-audit-remediation/DECISION_REGISTER.md`](13-audit-remediation/DECISION_REGISTER.md)
 - [`docs/13-audit-remediation/FIRST_SLICE_TRACEABILITY.md`](13-audit-remediation/FIRST_SLICE_TRACEABILITY.md)
 - [`docs/13-audit-remediation/PHASE_00_BRANCH_REVIEW.md`](13-audit-remediation/PHASE_00_BRANCH_REVIEW.md)
+- [`docs/13-audit-remediation/PHASE_01_DECISION_WORKSHOP.md`](13-audit-remediation/PHASE_01_DECISION_WORKSHOP.md)
 - [`docs/13-audit-remediation/README.md`](13-audit-remediation/README.md)
 - [`IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md)
 - [`PRODUCT_SPECIFICATION.md`](../PRODUCT_SPECIFICATION.md)

@@ -31,10 +31,12 @@ Use this register for unresolved decisions that affect architecture or business 
 
 ## Working papers
 
-- [`decision-papers/D-001-tenant-context-and-rls.md`](decision-papers/D-001-tenant-context-and-rls.md)
-- [`decision-papers/D-002-identity-and-session-lifecycle.md`](decision-papers/D-002-identity-and-session-lifecycle.md)
-- [`decision-papers/D-003-physical-database-conventions.md`](decision-papers/D-003-physical-database-conventions.md)
+- [`decision-papers/D-001-tenant-context-and-rls.md`](decision-papers/D-001-tenant-context-and-rls.md) — revision 2
+- [`decision-papers/D-002-identity-and-session-lifecycle.md`](decision-papers/D-002-identity-and-session-lifecycle.md) — revision 2
+- [`decision-papers/D-003-physical-database-conventions.md`](decision-papers/D-003-physical-database-conventions.md) — revision 2
 - [`decision-papers/README.md`](decision-papers/README.md) — status, approval order and rules
+- [`PHASE_01_DECISION_WORKSHOP.md`](PHASE_01_DECISION_WORKSHOP.md) — DP-01 … DP-15 resolutions, approval sheet, post-approval sequence
+- [`../10-development-execution/PHASE_01_IMPLEMENTATION_BACKLOG.md`](../10-development-execution/PHASE_01_IMPLEMENTATION_BACKLOG.md) — implementation backlog (blocked until D-001/D-002/D-003 are approved)
 
 ## Decision record template
 

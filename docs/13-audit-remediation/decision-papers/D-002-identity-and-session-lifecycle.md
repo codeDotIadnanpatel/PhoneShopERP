@@ -5,6 +5,10 @@
 > ADR or security policy. Under `DECISION_REGISTER.md`, an AI agent may recommend an option but
 > must not approve security policy. Nothing here authorises implementation until an authorised
 > human approver records the outcome.
+>
+> **Revision 2 (2026-11-02):** DP-05, DP-06, DP-10, DP-11, DP-12 and DP-15 from
+> `../PHASE_00_BRANCH_REVIEW.md` §3.3 are resolved in this text. Summary of changes in §11.
+> Nothing here is approved by the revision.
 
 | Field | Value |
 |---|---|
@@ -93,16 +97,44 @@ support) is a commercial decision the approver must make; it is listed in §8.
 
 **R1 — OIDC/OAuth 2.1 Authorization Code + PKCE for all interactive clients.** No password
 grant, no implicit flow, no user API keys. Access tokens are JWTs validated locally by the API
-(signature, issuer, audience, expiry) and reference a server-side session.
+(signature, issuer, audience, expiry) and reference a server-side session by `sid`.
+
+**Token claims are deliberately minimal:** `sub`, `sid`, `iss`, `aud`, `exp`, `nbf`, `iat`,
+`jti`. The token carries **no tenant and no permission list**. Tenant, membership and
+permissions are read from the server-side session and database on each request (cached for at
+most the revocation window in R4). This removes a whole class of stale-claim defects: removing a
+user from a tenant takes effect when the session cache expires, not when a token expires.
+
+Token validation accepts only a configured algorithm allowlist (`RS256`/`ES256`), never `none`
+and never a key supplied by the request.
+
+**R1a — Signing keys, JWKS and rotation (DP-10).**
+
+| Responsibility | Managed IdP (recommended) | Self-hosted fallback |
+|---|---|---|
+| Signing keys | IdP-owned; our API never holds a private key | We own: 2-key overlap, 90-day rotation, published JWKS, emergency-rotation runbook |
+| JWKS retrieval | Cached from issuer metadata; refresh on unknown `kid`; bounded TTL (1 h); honour cache headers; fail closed if the key cannot be resolved | Same, plus alerting on refresh failure |
+| Client secrets | Stored in the platform secret manager, 90-day rotation, never in configuration or source | Same |
+
+Key compromise response is documented in the operational runbook: rotate, invalidate the JWKS
+cache, revoke the affected client, and revoke sessions independently of token lifetime.
 
 **R2 — Identity behind an abstraction.** `IIdentityProvider` (issuer metadata, token
 validation, user provisioning) isolates the vendor. Domain/application code never references
 vendor SDKs. A design test forbids vendor types outside the adapter project.
 
-**R3 — Server-side session registry.** `identity.session` holds `session_id` (uuid), `user_id`,
-`tenant_id`, `device_id` (nullable), `issued_at`, `last_seen_at`, `expires_at`, `revoked_at`,
-`revoke_reason`, and a hashed user-agent/IP fingerprint. The access token carries `sid`.
-Revocation is a row update, effective within the cache window below.
+**R3 — Server-side session registry (DP-05, DP-15).**
+
+`identity.session` holds: `id` (also the `sid` claim), `user_id`, `membership_id`, `tenant_id`,
+`device_id` (nullable; `identity.device`), `permission_version` (snapshot at issue),
+`issued_at`, `last_seen_at`, `absolute_expires_at`, `idle_expires_at`, `revoked_at`,
+`revoke_reason`, and a hashed user-agent/IP fingerprint.
+
+`identity.refresh_token` holds the hash of the current refresh token, the session id, a
+`family_id`, `used_at`, `expires_at` and `revoked_at`. Refresh tokens rotate on every use;
+presenting a used token revokes the whole family (reuse detection).
+
+**One session belongs to exactly one tenant.** A session never changes tenant in place; see R5a.
 
 **R4 — Recommended token lifetimes** (exact values are the approver's decision):
 
@@ -112,24 +144,52 @@ Revocation is a row update, effective within the cache window below.
 | Refresh token | Rotating, single-use, reuse detection revokes the session family | Standard OAuth 2.1 practice |
 | Absolute session lifetime (back office) | 12 hours | Covers a working day without immortal sessions |
 | Idle timeout (back office) | 30 minutes | Shared-office risk |
-| POS/mobile session | Bound to device + operator shift; absolute lifetime set by D-013 | Terminal is physically shared |
+| POS/mobile session | Bound to device + operator shift; absolute lifetime set by D-012/D-013 | Terminal is physically shared |
 | Revocation check cache | ≤ 60 s for normal operations; **always** for privileged operations | Balances latency and C3 |
 
-**R5 — Permissions are resolved server-side, never trusted from the token.** The token carries
-subject and session, not an authoritative permission list. The API resolves roles, permissions
-and entity/branch scope from the database (cache permitted, scoped per tenant). Changing a
-user's roles bumps `identity.user.permission_version`; sessions carrying an older version are
-forced to re-resolve/re-authenticate for privileged actions.
+**R5 — Permissions are resolved server-side, never trusted from the token.** The API resolves
+roles, permissions and entity/branch scope from the database (cache permitted, scoped per
+tenant). The permission version is scoped to the **authorisation subject**, not to the user:
 
-**R6 — MFA policy (recommendation, approver decides):**
+| Subject | Version column | Reason |
+|---|---|---|
+| Tenant user | `identity.membership.permission_version` | Roles are per tenant; a user in two tenants has independent grants |
+| Platform operator | `identity.platform_grant.permission_version` | Platform operators are not tenant members and must not inherit tenant roles |
+
+Changing a role assignment increments the version on the affected membership (or platform
+grant) only. A session whose `permission_version` snapshot is older must re-resolve before any
+privileged action, and is forced to re-authenticate when the change reduces privileges. A change
+in tenant B never invalidates tenant A's cache.
+
+**R5a — Tenant switching is an explicit, audited session operation (DP-11).**
+
+`POST /sessions/{id}/tenant` with a target tenant id:
+
+1. Require a valid session and an active membership in the target tenant.
+2. Revoke the current refresh-token family and mark the current session ended
+   (`revoke_reason = 'tenant_switch'`). A tenant switch is not a silent in-place mutation.
+3. Create a new session row with the new `tenant_id`/`membership_id` and a new `sid`, plus a new
+   refresh token; return a new access token.
+4. Emit `session.tenant_switched` with actor, from-tenant, to-tenant, correlation id and
+   session ids.
+
+There is no "tenant" parameter on ordinary endpoints, so no other path can change scope.
+
+**R6 — MFA policy (recommendation, approver decides).** The rule is expressed through the
+permission catalogue, not hard-coded names (DP-12):
 
 | Population | Recommendation |
 |---|---|
 | Platform operators / support | Mandatory MFA, hardware-backed or WebAuthn preferred |
 | Tenant owner / tenant administrator | Mandatory MFA |
-| Any role holding high-risk permissions (`sale.void`, `payment.refund`, `stock.adjust`, `stock.writeoff`, `journal.approve`, `tradein.approve`, `period.close`) | Mandatory MFA |
+| Any role holding a permission whose catalogue entry has `risk_class = 'high'` | Mandatory MFA |
 | Cashier / salesperson / technician | MFA available, not mandatory |
 | Customer PWA users | Separate identity population, no employee permissions; MFA optional |
+
+Illustrative high-risk permissions — `sale.void`, `payment.refund`, `stock.adjust`,
+`stock.writeoff`, `journal.approve`, `tradein.approve`, `period.close` — are **examples only**.
+`PERMISSION_MATRIX.md` says the catalogue is not yet normalised; D-011 and the Phase 01
+permission catalogue own the naming and the classification.
 
 Preferred second factors: WebAuthn/passkeys, then TOTP. SMS is the weakest option and should be
 accepted only if the launch jurisdiction requires it. If the IdP owns passwords, its policy is
@@ -154,17 +214,19 @@ record — **no silent impersonation** (`SECURITY_BASELINE.md`). Reuse of a rota
 is treated as theft: revoke the family, alert, audit.
 
 **R10 — Offline authorization is bounded and explicit.** On successful online login a device
-receives a signed authorization snapshot (subject, tenant, permissions, branch scope, issued-at,
-hard expiry, device id). While offline, the client may only perform operations permitted by
-D-012's allowlist and only until the snapshot expires (recommend 24 hours, configurable,
-shorter for high-risk actions). On reconnect, the server revalidates the session and permissions;
-revoked devices cannot sync, and their queued commands are quarantined. **D-002 does not
-authorise any offline write** — that is D-012.
+receives a signed authorization snapshot (subject, tenant, membership id, permission version,
+permissions, branch scope, issued-at, hard expiry, device id). While offline, the client may
+only perform operations permitted by D-012's allowlist and only until the snapshot expires
+(recommend 24 hours, configurable, shorter for high-risk actions). On reconnect, the server
+revalidates the session, membership and permission version; revoked devices cannot sync, and
+their queued commands are quarantined. **D-002 does not authorise any offline write** — that is
+D-012.
 
 **R11 — Authentication events are audited, secrets are never logged.** Login success/failure,
-MFA challenge and failure, lockout, token-reuse detection, revocation, recovery and role changes
-emit audit events with actor, tenant, IP fingerprint and outcome. Tokens, passwords, OTPs and
-refresh values are excluded from logs, traces and error reports by policy and by test.
+MFA challenge and failure, lockout, token-reuse detection, revocation, tenant switch, recovery
+and role changes emit audit events with actor, tenant, IP fingerprint and outcome. Tokens,
+passwords, OTPs and refresh values are excluded from logs, traces and error reports by policy
+and by test.
 
 **R12 — Abuse controls.** Rate limits and exponential backoff on authentication, recovery,
 invitation and MFA endpoints; alerting on credential-stuffing patterns; per-tenant and per-IP
@@ -174,10 +236,10 @@ limits at the edge.
 
 | Dimension | Impact |
 |---|---|
-| **Modules** | A `Platform/Identity` module owns sessions, memberships and permission resolution; other modules consume an `ICurrentUser` contract, never raw tokens. |
-| **Data** | New tables: user, membership, role, permission, role assignment, session, MFA credential reference, device registration (D-013), recovery token. Token/secret values are stored hashed; no plaintext. |
-| **API** | Standard OIDC discovery; `/sessions`, `/me`; tenant switch is an explicit endpoint; `401` vs `403` semantics defined; `WWW-Authenticate` used correctly; OpenAPI security schemes declared per operation. |
-| **Permissions** | Deny-by-default; permissions resolved per request for privileged operations; branch/entity scope enforced in the application (D-001 R10/R11). |
+| **Modules** | The `Identity & Access` module owns users, memberships, platform grants, roles, sessions and the device registry; other modules consume an `ICurrentUser`/`ITenantContext` contract, never raw tokens. |
+| **Data** | Tables: user, membership, platform_grant, role, permission, role_assignment, session, refresh_token, device, mfa_credential, recovery_token. Token/secret values are stored hashed; no plaintext. |
+| **API** | Standard OIDC discovery; `/sessions`, `/sessions/{id}/tenant`, `/me`, `/devices`; `401` vs `403` semantics defined; `WWW-Authenticate` used correctly; OpenAPI security schemes declared per operation. |
+| **Permissions** | Deny-by-default; permission and scope resolved per request for privileged operations; branch/entity scope enforced in the application (D-001 R10/R11). |
 | **Accounting** | High-risk journal/refund/void actions require step-up; the audit event links approver and session. No accounting posting rule is decided here (D-008). |
 | **Offline** | Device-bound refresh tokens in OS-protected storage; signed, expiring authorization snapshot; revalidation on reconnect; queued commands quarantined for revoked devices. |
 | **Reporting** | Report access uses the same session and scope; exports are attributed to the session and audited. |
@@ -191,10 +253,13 @@ limits at the edge.
 | Expired access token → `401`; revoked session → `401` within the documented cache window | Integration test |
 | Refresh-token reuse revokes the session family and raises an audit/security event | Integration test |
 | Missing permission → `403`; privilege escalation attempt via client-supplied role/tenant claim → denied | API negative test |
+| A token with a forged `tenant` or `permission` claim changes nothing (those claims are ignored) | API negative test |
 | Token/permission caches are tenant-scoped; cross-tenant cache key reuse is impossible | Integration test |
-| Role change bumps `permission_version` and forces re-resolution | Integration test |
+| Role change bumps the **membership** version and invalidates only that tenant's cache | Integration test |
+| Tenant switch creates a new session, revokes the old refresh family and audits from/to tenant | Integration test |
 | MFA challenge required for each role class per the approved policy | API test |
 | Step-up freshness enforced on high-risk actions | API test |
+| Unknown `kid` triggers a JWKS refresh; a failed refresh fails closed | Integration test |
 | Offline snapshot expiry blocks offline operations; revoked device cannot sync | Client + server test (with D-012/D-013) |
 | No token, password or OTP appears in logs, traces or error responses | Log inspection test |
 
@@ -202,6 +267,9 @@ limits at the edge.
 
 1. **Vendor and cost ceiling:** which managed IdP, and what per-active-user cost ceiling is
    acceptable against the affordable-subscription model (`PF-001`)?
+   *Fast-track note:* the approach can be approved now and the vendor selected before the
+   authentication work package starts, because the adapter boundary (R2) makes the choice
+   reversible. If vendor selection slips, development can use a local OIDC test provider.
 2. **Data residency:** does D-009's launch jurisdiction require identity data to stay in a
    specific region? This can eliminate some vendors.
 3. **MFA exact policy:** confirm the role classes in R6, and whether SMS may be offered.
@@ -220,16 +288,20 @@ limits at the edge.
 - **Status:** Proposed (awaiting approval)
 - **Decision:** All interactive clients authenticate with OIDC/OAuth 2.1 Authorization Code +
   PKCE through a managed, standards-compliant identity provider accessed through an
-  application-owned abstraction. Short-lived access tokens (recommended 10 minutes) are backed
-  by a server-side session registry; refresh tokens rotate with reuse detection; revocation is
-  a server-side row update. Permissions and entity/branch scope are resolved server-side and
-  never trusted from token claims. MFA is mandatory for platform operators, tenant
-  administrators and roles holding high-risk permissions. Machine identities use OAuth client
-  credentials with per-tenant encrypted credentials. Offline clients hold a device-bound
-  refresh token in OS-protected storage and a signed, expiring authorization snapshot; offline
-  writes remain governed by D-012/D-013.
+  application-owned abstraction. Access tokens carry only subject and session claims (no tenant,
+  no permissions) and are validated against a cached JWKS with an algorithm allowlist.
+  Short-lived access tokens (recommended 10 minutes) are backed by a server-side session
+  registry; refresh tokens rotate with reuse detection; revocation is a server-side row update.
+  One session belongs to one tenant; switching tenant is an explicit, audited operation that
+  creates a new session. Permissions and entity/branch scope are resolved server-side, versioned
+  per membership (or per platform grant) rather than per user. MFA is mandatory for platform
+  operators, tenant administrators and roles holding high-risk permissions. Machine identities
+  use OAuth client credentials with per-tenant encrypted credentials. Offline clients hold a
+  device-bound refresh token in OS-protected storage and a signed, expiring authorization
+  snapshot; offline writes remain governed by D-012/D-013.
 - **Options rejected:** in-house identity for launch, long-lived JWTs without revocation,
-  cached passwords for offline login, and per-tenant BYO IdP at launch.
+  cached passwords for offline login, tenant/permission claims in the token, and per-tenant BYO
+  IdP at launch.
 - **Consequences:** identity module and session schema; login becomes a runtime dependency;
   step-up authentication for high-risk actions; device-bound offline authorization; vendor
   selection and residency must be approved separately.
@@ -256,9 +328,21 @@ limits at the edge.
 `docs/02-functional-specifications/TENANTS_AND_BRANCHES.md`;
 `docs/03-platform-applications/` (WPF, Flutter, Next.js, customer portal);
 `docs/04-data-and-api/API_STANDARDS.md`;
+`docs/04-data-and-api/AUDIT_AND_RETENTION.md`;
 `docs/05-security-and-compliance/SECURITY_BASELINE.md`;
 `docs/11-engineering-design/ARCHITECTURE_GATES.md` (AG-02, AG-08);
 `docs/11-engineering-design/SECURITY_THREAT_MODEL.md`;
 `docs/12-engineering-readiness/PERMISSION_MATRIX.md`;
 `docs/12-engineering-readiness/TESTING_STRATEGY.md`;
 `docs/13-audit-remediation/FIRST_SLICE_TRACEABILITY.md`.
+
+## 11. Revision 2 change log (DP resolutions)
+
+| DP | Was | Now |
+|---|---|---|
+| DP-05 | `permission_version` per user, though roles are per membership | R5: version lives on `identity.membership`, or `identity.platform_grant` for platform operators; sessions snapshot it |
+| DP-06 | Login bootstrap undefined; tenant implied to come from a token claim | R1 removes tenant from the token; tenant comes from the session record; bootstrap sequence is D-001 R8a |
+| DP-10 | Signing keys, JWKS and rotation unaddressed | R1a: managed-IdP and self-hosted responsibility split, JWKS caching and emergency rotation |
+| DP-11 | Tenant switching named but undefined | R5a: explicit endpoint, new session, old refresh family revoked, audited |
+| DP-12 | MFA triggered by unnormalised permission strings | R6: driven by the permission catalogue's `risk_class`; named permissions labelled illustrative |
+| DP-15 | Device registration in `platform` vs identity concern in D-002 | `identity.device` is the single device registry; D-013 owns detail |
