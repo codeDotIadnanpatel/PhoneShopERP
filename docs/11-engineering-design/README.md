@@ -1,4 +1,4 @@
-# Engineering Design Pack (v1.2)
+# Engineering Design Pack (introduced in v1.2; maintained in v1.5)
 
 **Status:** Engineering baseline for review; not a substitute for approved ADRs, jurisdiction advice, or implementation evidence.
 

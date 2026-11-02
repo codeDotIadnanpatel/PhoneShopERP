@@ -35,3 +35,9 @@ Every status change should include a PR/issue reference, owner, date and evidenc
 - Execution-plan documentation: **Created** (planning artifact only; no product software implementation is implied).
 - Phase implementation status: **Not started** unless separately evidenced in this register.
 - See `docs/10-development-execution/PHASE_TRACKER.md` for phase-level tracking.
+
+
+## Specification package readiness (v1.5)
+- The v1.5 documentation package has passed ZIP integrity and documentation-index link validation.
+- This is not evidence that application code, automated tests, deployments, security controls or production operations have been implemented.
+- Phase 00 remains `Not started` unless the phase tracker and implementation evidence are updated by the project team.

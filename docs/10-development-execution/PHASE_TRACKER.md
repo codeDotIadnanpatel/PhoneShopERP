@@ -15,3 +15,8 @@
 | 10 | Production readiness and launch | Not started | — |
 
 Update this tracker only when status changes. Use the status vocabulary in `DEVELOPMENT_EXECUTION_PLAN.md`. A phase is completed only when its exit gate passes. Record blocked task IDs and the dependency/decision needed to unblock them.
+
+
+## v1.4 release-gate reference
+
+Use `../12-engineering-readiness/RELEASE_GATES.md` for evidence-based phase exit criteria and `../12-engineering-readiness/TESTING_STRATEGY.md` for test expectations. This addition does not change any phase status.

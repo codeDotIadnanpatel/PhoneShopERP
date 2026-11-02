@@ -2,7 +2,7 @@
 ## Canonical AI project briefing — Smartphone Shop SaaS ERP
 
 **Document role:** The single-file starting point for any AI assistant, developer, reviewer or new team member.
-**Package version:** v1.3
+**Package version:** v1.5
 **Project/product name:** Not selected; use a configurable placeholder.
 **Current project state:** Specification and engineering-planning stage. The repository describes the intended product and proposed engineering baseline; it is not evidence that the software has been implemented.
 **Authority:** This file is the project-wide orientation and navigation document. Detailed requirements, accepted decisions, phase criteria and design contracts remain authoritative in their respective source files.
@@ -282,6 +282,7 @@ Resolve prerequisite architecture gates, confirm repository/tooling conventions,
 4. `DECISIONS.md` — accepted and open decisions.
 5. `docs/10-development-execution/PHASE_TRACKER.md` — current phase state.
 6. `docs/10-development-execution/DEVELOPMENT_EXECUTION_PLAN.md` — sequencing and quality gates.
+7. `docs/12-engineering-readiness/README.md` and the relevant readiness documents — workflow, permissions, tests, AI playbook and release controls.
 
 ## Read before architecture or foundational work
 - `docs/00-product-foundation/PRODUCT_VISION.md`
@@ -295,6 +296,12 @@ Resolve prerequisite architecture gates, confirm repository/tooling conventions,
 - `docs/11-engineering-design/NON_FUNCTIONAL_REQUIREMENTS.md`
 
 ## Read for specific work
+- Business workflow implementation: `docs/12-engineering-readiness/BUSINESS_WORKFLOW_CATALOGUE.md` and `CROSS_MODULE_SCENARIOS.md`.
+- Authorization: `docs/12-engineering-readiness/PERMISSION_MATRIX.md`.
+- Testing and phase completion: `docs/12-engineering-readiness/TESTING_STRATEGY.md` and `RELEASE_GATES.md`.
+- AI session/task coordination: `docs/12-engineering-readiness/AI_DEVELOPMENT_PLAYBOOK.md`.
+- API contracts and code review: `API_CONTRACT_STANDARDS.md` and `CODE_QUALITY_STANDARDS.md`.
+- Production/DR: `PRODUCTION_OPERATIONS.md`.
 - Database/schema/data ownership: `DATABASE_DOMAIN_MODEL.md`, `DATABASE_RELATIONSHIPS.md`, relevant module data specifications and `DATA_MIGRATION_STRATEGY.md`.
 - API/endpoint/event work: `API_CONTRACT_CATALOGUE.md`, `API_EXAMPLES.md`, module API contracts and security requirements.
 - Accounting/posting: `ACCOUNTING_SCENARIOS.md`, accounting module requirements, `DECISIONS.md` and relevant architecture gates.
@@ -380,3 +387,7 @@ Treat this repository as one connected product, not a collection of unrelated sc
 Start every new task by reading this file and the mandatory files listed above. Then read the relevant detailed sources before coding. If you cannot verify something, say so. If a decision is missing, surface it. If you change something, update its tests, traceability and documentation. Build only what is authorised by the requirements and approved decisions, in the planned phase order.
 
 **This file is the project briefing and navigation hub. It is not a replacement for the detailed specifications, architecture gates, ADRs, contracts, acceptance criteria or live implementation-status evidence.**
+
+
+## v1.5 audit remediation
+The v1.5 audit remediation pack in `docs/13-audit-remediation/` records the v1.4 specification audit, Phase 00 decision-control process and first-slice traceability requirements. Read its README during Phase 00. It does not override accepted decisions or turn illustrative designs into approved contracts.

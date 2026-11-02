@@ -2,7 +2,8 @@
 
 **Working product name:** Not selected  
 **Product category:** Multi-tenant SaaS ERP for smartphone, mobile-device, accessory and repair retailers  
-**Specification status:** Baseline v1.0 — approved product direction; implementation details remain subject to recorded architecture decisions.
+**Specification lineage:** Product baseline introduced in v1.0.  
+**Current package version:** v1.5 — audit remediation and engineering-readiness baseline; implementation details remain subject to recorded architecture decisions.
 
 This repository documentation is the product and engineering source of truth. The product is intended to serve independent mobile retailers on an affordable monthly subscription while supporting growing multi-branch operators and larger chains.
 
@@ -65,3 +66,9 @@ For detailed engineering sequencing, task breakdowns, dependencies, acceptance c
 - **Released:** Available to customers.
 
 See `IMPLEMENTATION_STATUS.md` for the live status register.
+
+
+## v1.5 — Audit remediation
+v1.5 corrects the documentation index and package-version metadata, replaces generic Phase 00 task checklists with task-specific deliverables, and adds an audit remediation plan, decision register and first-slice traceability baseline. It does not claim application implementation or approve unresolved business, accounting, tax, security or infrastructure policies.
+
+**Current readiness:** Begin Phase 00. Do not treat conceptual data models, illustrative API examples or accounting scenarios as production-approved contracts.

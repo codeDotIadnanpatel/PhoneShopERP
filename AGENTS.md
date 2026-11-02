@@ -43,3 +43,14 @@ Engineering-design rules:
 - Every task must have task-level acceptance criteria and traceability to requirement/test IDs.
 - Preserve the distinction between serialized devices, bulk stock, ownership, custody, location, availability and condition.
 - Offline capability never implies guaranteed global exclusivity; follow the approved conflict policy.
+
+
+## Engineering readiness framework
+
+Before implementation, consult the relevant documents in `docs/12-engineering-readiness/`, especially `AI_DEVELOPMENT_PLAYBOOK.md`, `BUSINESS_WORKFLOW_CATALOGUE.md`, `TESTING_STRATEGY.md` and `RELEASE_GATES.md`. Do not treat proposed examples or unresolved policies as approved requirements.
+
+## v1.5 audit remediation rules
+
+- For Phase 00, read `docs/13-audit-remediation/README.md`, `AUDIT_REMEDIATION_PLAN.md` and `DECISION_REGISTER.md`.
+- Do not implement production database schema, financial posting, offline writes or client integrations from conceptual/illustrative documents alone. Require the relevant approved decision and contract.
+- Keep `docs/13-audit-remediation/FIRST_SLICE_TRACEABILITY.md` synchronized as the platform/inventory foundation is implemented; link actual migration, API operation, permission and automated test IDs.

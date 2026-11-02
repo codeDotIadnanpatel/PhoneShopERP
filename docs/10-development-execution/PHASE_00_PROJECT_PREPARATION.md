@@ -2,70 +2,99 @@
 
 **Phase ID:** `P00`  
 **Status:** Not started  
-**Objective:** Create a validated engineering baseline before feature implementation.
+**Objective:** Establish a reviewed, reproducible engineering baseline and resolve the decisions required for the first implementation slice. Phase 00 is preparation; it is not permission to implement all product behaviour.
 
 ## Scope and work packages
 
-### `P00-W01-T01` — Review product, architecture, security, offline, accounting and operations specifications.
+### `P00-W01-T01` — Specification and architecture review
+**Deliverables**
+- A reviewed list of current specifications and their owners.
+- A discrepancy/ambiguity log with source document, impact, proposed resolution, decision owner and due phase.
+- Confirmation that the v1.5 audit remediation plan has been reviewed.
 
-- [ ] Clarify acceptance examples and edge cases.
-- [ ] Implement domain/application behaviour and persistence/API contract as applicable.
-- [ ] Add authorization, audit and validation.
-- [ ] Add automated tests and update documentation/traceability.
+**Acceptance criteria**
+- [ ] The current package version and documentation index are correct.
+- [ ] No unresolved contradiction is silently treated as approved behaviour.
+- [ ] Each critical issue is assigned to an owner or explicitly marked as awaiting assignment.
+- [ ] `IMPLEMENTATION_STATUS.md` accurately reflects repository and application state.
 
-### `P00-W02-T01` — Record ambiguities, unresolved business rules and decision requests; do not silently invent policy.
+### `P00-W02-T01` — Decision register and architecture-gate triage
+**Deliverables**
+- Completed entries in `docs/13-audit-remediation/DECISION_REGISTER.md`.
+- A list of decisions required before the first vertical slice and decisions that can safely wait.
+- ADRs for material decisions, linked from `DECISIONS.md`.
 
-- [ ] Clarify acceptance examples and edge cases.
-- [ ] Implement domain/application behaviour and persistence/API contract as applicable.
-- [ ] Add authorization, audit and validation.
-- [ ] Add automated tests and update documentation/traceability.
+**Acceptance criteria**
+- [ ] Each decision has a unique ID, scope, owner, status, affected modules and dependent work.
+- [ ] First-slice blockers are approved before dependent implementation begins.
+- [ ] Proposals and illustrative examples remain clearly labelled until approved.
+- [ ] Deferred decisions have a target phase and a reason for deferral.
 
-### `P00-W03-T01` — Create repository/solution skeletons for .NET API, WPF, Flutter and Next.js; establish module ownership.
+### `P00-W03-T01` — Repository and solution skeleton
+**Deliverables**
+- Repository layout and solution/project skeletons for the .NET API and shared backend modules.
+- Placeholders or separately documented setup paths for WPF, Flutter and Next.js clients; avoid generating empty applications without an agreed ownership boundary.
+- Module ownership and dependency rules.
 
-- [ ] Clarify acceptance examples and edge cases.
-- [ ] Implement domain/application behaviour and persistence/API contract as applicable.
-- [ ] Add authorization, audit and validation.
-- [ ] Add automated tests and update documentation/traceability.
+**Acceptance criteria**
+- [ ] A clean checkout can restore and build the backend skeleton.
+- [ ] No client directly connects to the cloud database.
+- [ ] Module dependency direction is documented and checked where practical.
+- [ ] No production business behaviour is implied by scaffolding.
 
-### `P00-W04-T01` — Configure local development, secrets handling, CI, formatting, static analysis and test projects.
+### `P00-W04-T01` — Developer environment and CI baseline
+**Deliverables**
+- Local setup guide, environment variable template with placeholders, secrets-handling instructions and repeatable local services.
+- CI workflow for formatting, static analysis, build and currently available tests.
+- Test project skeleton and a documented command to run checks locally.
 
-- [ ] Clarify acceptance examples and edge cases.
-- [ ] Implement domain/application behaviour and persistence/API contract as applicable.
-- [ ] Add authorization, audit and validation.
-- [ ] Add automated tests and update documentation/traceability.
+**Acceptance criteria**
+- [ ] A second developer can follow the setup guide from a clean checkout.
+- [ ] CI runs on a clean environment without relying on developer secrets.
+- [ ] Secrets are not committed to source control.
+- [ ] CI reports failures clearly and does not mark skipped tests as passed.
 
-### `P00-W05-T01` — Define API/event conventions, migration workflow, branching and code review standards.
+### `P00-W05-T01` — Engineering conventions and first-slice contract plan
+**Deliverables**
+- API/event naming and error conventions.
+- Database migration and rollback policy.
+- Branching, pull-request, review and definition-of-done conventions.
+- First-slice contract and traceability plan using `FIRST_SLICE_TRACEABILITY.md`.
 
-- [ ] Clarify acceptance examples and edge cases.
-- [ ] Implement domain/application behaviour and persistence/API contract as applicable.
-- [ ] Add authorization, audit and validation.
-- [ ] Add automated tests and update documentation/traceability.
+**Acceptance criteria**
+- [ ] API contracts are version-controlled and validated in CI once introduced.
+- [ ] Migrations are repeatable, ordered and tested against a clean database.
+- [ ] Changes to tenant boundaries, ledger invariants or public contracts require review.
+- [ ] Every first-slice requirement is linked to implementation and verification evidence as work proceeds.
 
 ## Non-negotiable phase rules
 
-- Do not invent missing business rules; raise decision requests.
+- Do not invent missing business rules; raise a decision request.
+- Do not generate a production physical schema from the conceptual ERD without an approved schema decision and RLS design.
+- Do not implement financial posting from illustrative accounting scenarios without approved posting policy and qualified review.
+- Do not enable offline transactional writes until the command allowlist and reconciliation policy are approved.
 - No production feature is implied by repository scaffolding.
+- Keep phase status as `Not started` until work begins and update it only with evidence.
 
-## Acceptance criteria
+## Phase exit criteria
 
 - [ ] Repository builds from a clean checkout and CI runs repeatably.
-- [ ] Open decisions, assumptions, risks and owners are recorded.
-- [ ] A second developer can follow the local setup guide.
+- [ ] Developer setup is reproducible by a second developer.
+- [ ] Critical decisions required for the first vertical slice are approved and recorded.
+- [ ] Deferred decisions have owners or explicit assignment actions and target phases.
+- [ ] First-slice requirements are mapped to planned contracts, permissions and tests.
+- [ ] Security, tenant isolation and migration test approach is agreed.
+- [ ] Deliverables and evidence are reviewed; `IMPLEMENTATION_STATUS.md`, `DECISIONS.md`, `REQUIREMENTS_TRACEABILITY.md` and `PHASE_TRACKER.md` are updated.
 
 ## Verification checklist
 
-- [ ] Unit tests for domain rules and state transitions.
-- [ ] Integration tests for persistence, transactions and migrations.
-- [ ] API/contract tests for success and error cases.
-- [ ] Authorization and cross-tenant negative tests.
-- [ ] Duplicate/retry/idempotency and concurrency tests where applicable.
-- [ ] Offline/reconnect/conflict tests where applicable.
-- [ ] End-to-end demonstration of critical user journeys.
-
-## Exit gate
-
-All in-scope acceptance criteria must pass; critical defects must be closed or formally accepted; deliverables and evidence must be reviewed; update `IMPLEMENTATION_STATUS.md` and `REQUIREMENTS_TRACEABILITY.md`.
+- [ ] Clean-checkout build and CI run.
+- [ ] Migration apply/rollback or forward-recovery procedure is demonstrated.
+- [ ] Configuration and secrets scan passes.
+- [ ] Architecture dependency checks pass where configured.
+- [ ] Test projects execute and publish results.
+- [ ] Cross-tenant test strategy is documented before tenant-owned persistence is implemented.
 
 ## AI-agent execution brief
 
-Read `AGENTS.md`, this phase, the relevant functional specification and applicable architecture/security/offline/accounting documents before editing. Inspect existing code. Work only on assigned task IDs. State module, schema, API, permission, accounting, audit and offline impacts. Implement the smallest coherent change, add relevant tests, run checks, update documentation and report files changed, migrations, test results, limitations and unresolved decisions. Never hardcode tenant IDs, invent business rules, silently change architecture or claim completion without evidence.
+Read `PROJECT_CONTEXT.md`, `AGENTS.md`, this phase, `docs/13-audit-remediation/README.md`, the relevant decision entries and task-specific specifications before editing. Inspect the live repository and report its actual state. Work only on the assigned task ID. For each change, state affected modules, schema, API, permissions, accounting, audit and offline implications. Implement the smallest coherent deliverable, run relevant checks, update traceability and report exact files changed, commands run, results, limitations and unresolved decisions. Never hardcode tenant IDs, invent policy, silently change architecture or claim completion without evidence.

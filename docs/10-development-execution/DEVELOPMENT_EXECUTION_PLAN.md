@@ -3,6 +3,10 @@
 **Status:** Proposed execution baseline  
 **Purpose:** Turn the product specification and release roadmap into an ordered, testable engineering programme. This is a milestone-based plan, not a calendar promise.
 
+## v1.5 audit remediation prerequisites
+
+Before starting Phase 00, review `../13-audit-remediation/README.md` and complete the applicable decision and traceability work. Phase 00 is preparation, not unrestricted feature implementation.
+
 ## Engineering design prerequisites (v1.2)
 
 Before dependent implementation, review `docs/11-engineering-design/ARCHITECTURE_GATES.md` and the relevant design contracts. The design pack is deliberately conceptual where decisions remain open. Do not generate a production schema, public API or posting rules from illustrative examples without approval.
