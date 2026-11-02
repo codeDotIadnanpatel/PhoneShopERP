@@ -2,7 +2,7 @@
 
 | Phase | Name | Status | Evidence / blockers |
 |---|---|---|---|
-| 00 | Project preparation | In progress | `P00-W03-T01` backend solution skeleton and `P00-W04-T01` developer/CI baseline delivered: `backend/PhoneShopErp.slnx` builds clean, 7 automated tests pass, CI workflow and secret guard added. `D-001`–`D-003` have working papers in `docs/13-audit-remediation/decision-papers/` (`In review`, proposed only, no approver named). Blocked for the first vertical slice: `D-001`–`D-005` remain unapproved and unowned, so no tenant persistence, schema, identity or stock contract may be implemented. |
+| 00 | Project preparation | In progress | `P00-W03-T01` backend solution skeleton and `P00-W04-T01` developer/CI baseline delivered on branch `Phase00`: `backend/PhoneShopErp.slnx` builds clean, 7 automated tests pass, CI workflow and secret guard pass in run `41517862568` (not yet merged). `D-001`–`D-003` have working papers in `docs/13-audit-remediation/decision-papers/` (`In review`, proposed only, no approver named). Blocked for the first vertical slice: `D-001`–`D-005` remain unapproved and unowned, so no tenant persistence, schema, identity or stock contract may be implemented. |
 | 01 | Platform foundation | Not started | — |
 | 02 | Products and inventory | Not started | — |
 | 03 | Suppliers and purchasing | Not started | — |

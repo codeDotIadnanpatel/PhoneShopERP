@@ -43,17 +43,17 @@ Non-product scaffolding only. It is not evidence of implemented business capabil
 | Item | Status | Evidence |
 |---|---|---|
 | Backend solution skeleton | In development | `backend/PhoneShopErp.slnx`, `backend/src/PhoneShopErp.Api`, `backend/tests/*` |
-| Clean-checkout build | In development — verified locally only | Fresh file copy of the repository at the time (no `bin`/`obj`) restored, formatted and built with 0 warnings, 0 errors |
-| Automated tests | In development — verified locally only | 7 tests (5 architecture, 2 API host), `Failed: 0, Skipped: 0` |
-| Module boundary enforcement | In development — verified locally only | `backend/tests/PhoneShopErp.Architecture.Tests/ModuleBoundaryTests.cs` |
+| Clean-checkout build | In development — CI-verified on branch `Phase00`, not merged | Local fresh-copy build plus CI clean checkout: restore, format, Release build with 0 warnings, 0 errors |
+| Automated tests | In development — CI-verified on branch `Phase00`, not merged | 7 tests (5 architecture, 2 API host), `Failed: 0, Skipped: 0` locally and in CI run `41517862568` |
+| Module boundary enforcement | In development — CI-verified on branch `Phase00`, not merged | `backend/tests/PhoneShopErp.Architecture.Tests/ModuleBoundaryTests.cs` |
 | Developer setup guide | In development | `docs/10-development-execution/DEVELOPER_SETUP.md` |
-| CI workflow | In development — never executed | `.github/workflows/backend-ci.yml` |
-| Secrets guard | In development — simulated locally, never executed in CI | CI step + `.env.example`, `.gitignore` |
+| CI workflow | In development — executed and passing on branch `Phase00`, not merged | `.github/workflows/backend-ci.yml`, run `41517862568` |
+| Secrets guard | In development — executed and passing on branch `Phase00`, not merged | CI step plus `.env.example`, `.gitignore` |
 | Database, identity, tenant context, RLS, modules | **Deliberately absent** | Blocked by `D-001`, `D-002`, `D-003` (`In review` — working papers only, no approver named) |
 
-These items stay at `In development` rather than `Implemented` or `Verified` because no pull
-request, commit or CI run reference exists yet. Only a merged change plus a CI run reference
-can promote them.
+These items stay at `In development` rather than `Implemented` or `Verified` because the branch
+holding them is not merged. A commit and a passing CI run now exist (run `41517862568`), so
+promotion only requires review and merge; that is the remaining gate, not more local testing.
 
 ## Specification package readiness (v1.5)
 - The v1.5 documentation package has passed ZIP integrity and documentation-index link validation.
