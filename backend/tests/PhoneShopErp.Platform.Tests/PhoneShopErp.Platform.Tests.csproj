@@ -9,7 +9,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">
       <PrivateAssets>all</PrivateAssets>
@@ -18,9 +20,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\PhoneShopErp.Modules.Tenancy.Application\PhoneShopErp.Modules.Tenancy.Application.csproj" />
-    <ProjectReference Include="..\..\src\PhoneShopErp.Modules.IdentityAccess.Application\PhoneShopErp.Modules.IdentityAccess.Application.csproj" />
-    <ProjectReference Include="..\..\src\PhoneShopErp.Modules.SaasPlatform.Application\PhoneShopErp.Modules.SaasPlatform.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Tenancy\PhoneShopErp.Modules.Tenancy.Application\PhoneShopErp.Modules.Tenancy.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\IdentityAccess\PhoneShopErp.Modules.IdentityAccess.Application\PhoneShopErp.Modules.IdentityAccess.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\IdentityAccess\PhoneShopErp.Modules.IdentityAccess.Infrastructure\PhoneShopErp.Modules.IdentityAccess.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\SaasPlatform\PhoneShopErp.Modules.SaasPlatform.Application\PhoneShopErp.Modules.SaasPlatform.Application.csproj" />
+    <ProjectReference Include="..\..\src\PhoneShopErp.Persistence\PhoneShopErp.Persistence.csproj" />
     <ProjectReference Include="..\..\src\PhoneShopErp.Platform\PhoneShopErp.Platform.csproj" />
   </ItemGroup>
 

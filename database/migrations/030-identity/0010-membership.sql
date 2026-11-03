@@ -43,20 +43,30 @@ ALTER TABLE identity.membership ENABLE ROW LEVEL SECURITY;
 ALTER TABLE identity.membership FORCE ROW LEVEL SECURITY;
 
 -- Read: own memberships before tenant selection, or any row in the selected
--- tenant. current_user_id() raises when the authenticated user is not resolved,
--- so the path fails closed.
+-- tenant.
 CREATE POLICY membership_read ON identity.membership
     FOR SELECT
     USING (
         tenant_id = platform.try_current_tenant_id()
-        OR user_id = platform.current_user_id()
+        OR user_id = platform.try_current_user_id()
     );
 
--- Write: tenant context is mandatory and the row must match it.
-CREATE POLICY membership_write ON identity.membership
-    FOR ALL
+-- Write policies are separate per command. A single `FOR ALL` policy would also
+-- be a SELECT policy, and its tenant-context expression would then be evaluated
+-- during the approved pre-tenant read path, raising 42501 instead of returning
+-- the caller's own memberships.
+CREATE POLICY membership_insert ON identity.membership
+    FOR INSERT
+    WITH CHECK (tenant_id = platform.current_tenant_id());
+
+CREATE POLICY membership_update ON identity.membership
+    FOR UPDATE
     USING (tenant_id = platform.current_tenant_id())
     WITH CHECK (tenant_id = platform.current_tenant_id());
+
+CREATE POLICY membership_delete ON identity.membership
+    FOR DELETE
+    USING (tenant_id = platform.current_tenant_id());
 
 CREATE TRIGGER trg_membership_row_version
     BEFORE UPDATE ON identity.membership

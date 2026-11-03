@@ -18,6 +18,8 @@ CREATE TABLE platform.outbox_message (
     processed_at timestamptz NULL,
     attempt_count integer NOT NULL DEFAULT 0,
     last_error text NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
     row_version integer NOT NULL DEFAULT 1,
     CONSTRAINT pk_outbox_message PRIMARY KEY (id),
     CONSTRAINT ck_outbox_message_event_type CHECK (event_type ~ '^[a-z][a-z0-9_.]{2,99}$'),

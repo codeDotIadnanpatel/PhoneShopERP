@@ -14,9 +14,10 @@ public sealed class DatabaseOptions
 
     /// <summary>
     /// Rejects connection strings that would put the runtime on an owning,
-    /// migration or superuser credential. A runtime connection must be erp_app.
-    /// PGHOST/PGUSER style environment configuration is allowed, but if a user is
-    /// named in the connection string it is validated.
+    /// migration, platform-administration or superuser credential. A runtime
+    /// connection must name <c>erp_app</c> explicitly; a username supplied only
+    /// through the <c>PGUSER</c> environment variable cannot be validated and is
+    /// therefore rejected rather than trusted.
     /// </summary>
     public void Validate()
     {
@@ -38,14 +39,19 @@ public sealed class DatabaseOptions
                 exception);
         }
 
-        if (!string.IsNullOrWhiteSpace(builder.Username))
+        if (string.IsNullOrWhiteSpace(builder.Username))
         {
-            var username = builder.Username.Trim();
-            if (username is "erp_owner" or "erp_migrator" or "postgres")
-            {
-                throw new InvalidOperationException(
-                    "The runtime must not connect as an owner, migration or superuser role. Use erp_app.");
-            }
+            throw new InvalidOperationException(
+                "Database:ConnectionString must name Username=erp_app explicitly. A username " +
+                "supplied only through PGUSER cannot be validated, so it is rejected.");
+        }
+
+        var username = builder.Username.Trim();
+        if (!string.Equals(username, "erp_app", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "The runtime must connect as erp_app. Owner, migration, platform-administration " +
+                "and superuser credentials are prohibited (ADR-0012).");
         }
 
         if (MaximumPoolSize is < 1 or > 500)

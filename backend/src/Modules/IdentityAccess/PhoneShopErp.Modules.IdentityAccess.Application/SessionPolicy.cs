@@ -9,9 +9,14 @@ namespace PhoneShopErp.Modules.IdentityAccess.Application;
 /// </summary>
 public sealed record SessionPolicy
 {
+    /// <summary>
+    /// Back-office session bounds approved by D-002 (30 minute idle, 12 hour
+    /// absolute). POS/mobile lifetimes are bound to device and shift and are set
+    /// by D-012/D-013, so they must not reuse this value.
+    /// </summary>
     public static SessionPolicy Default { get; } = new(
-        IdleTimeout: TimeSpan.FromMinutes(30),
-        AbsoluteTimeout: TimeSpan.FromHours(12));
+        TimeSpan.FromMinutes(30),
+        TimeSpan.FromHours(12));
 
     public SessionPolicy(TimeSpan idleTimeout, TimeSpan absoluteTimeout)
     {

@@ -44,6 +44,10 @@ CREATE POLICY tenant_isolation ON tenancy.tenant
     USING (tenant_id = platform.current_tenant_id())
     WITH CHECK (tenant_id = platform.current_tenant_id());
 
+-- 030-identity/0060-tenant-read.sql replaces this single `FOR ALL` policy with
+-- per-command policies plus a pre-tenant read path. It cannot be defined here
+-- because it references identity.membership, which does not exist yet.
+
 CREATE TRIGGER trg_tenant_row_version
     BEFORE UPDATE ON tenancy.tenant
     FOR EACH ROW EXECUTE FUNCTION platform.bump_row_version();

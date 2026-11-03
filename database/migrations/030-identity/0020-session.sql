@@ -29,6 +29,8 @@ CREATE TABLE identity.session (
     absolute_expires_at timestamptz NOT NULL,
     revoked_at timestamptz NULL,
     revoke_reason text NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
     row_version integer NOT NULL DEFAULT 1,
     CONSTRAINT pk_session PRIMARY KEY (id),
     CONSTRAINT fk_session_tenant FOREIGN KEY (tenant_id)
@@ -63,20 +65,32 @@ CREATE UNIQUE INDEX ux_session_user_provider_reference
 ALTER TABLE identity.session ENABLE ROW LEVEL SECURITY;
 ALTER TABLE identity.session FORCE ROW LEVEL SECURITY;
 
+-- Read: own session by provider reference before tenant selection, or any row in
+-- the selected tenant. Read and write policies are separate for the same reason
+-- as identity.membership: a `FOR ALL` policy would also apply to SELECT and
+-- would raise 42501 on the approved pre-tenant read path.
 CREATE POLICY session_read ON identity.session
     FOR SELECT
     USING (
         tenant_id = platform.try_current_tenant_id()
         OR (
-            provider_session_reference = platform.current_session_reference()
-            AND user_id = platform.current_user_id()
+            provider_session_reference = platform.try_current_session_reference()
+            AND user_id = platform.try_current_user_id()
         )
     );
 
-CREATE POLICY session_write ON identity.session
-    FOR ALL
+CREATE POLICY session_insert ON identity.session
+    FOR INSERT
+    WITH CHECK (tenant_id = platform.current_tenant_id());
+
+CREATE POLICY session_update ON identity.session
+    FOR UPDATE
     USING (tenant_id = platform.current_tenant_id())
     WITH CHECK (tenant_id = platform.current_tenant_id());
+
+CREATE POLICY session_delete ON identity.session
+    FOR DELETE
+    USING (tenant_id = platform.current_tenant_id());
 
 CREATE TRIGGER trg_session_row_version
     BEFORE UPDATE ON identity.session

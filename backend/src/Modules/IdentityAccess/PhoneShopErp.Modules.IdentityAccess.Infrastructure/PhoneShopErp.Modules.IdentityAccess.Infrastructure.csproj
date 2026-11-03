@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PhoneShopErp.Modules.IdentityAccess.Application\PhoneShopErp.Modules.IdentityAccess.Application.csproj" />
-    <ProjectReference Include="..\..\PhoneShopErp.Persistence\PhoneShopErp.Persistence.csproj" />
+    <ProjectReference Include="..\..\..\PhoneShopErp.Persistence\PhoneShopErp.Persistence.csproj" />
   </ItemGroup>
 
 </Project>

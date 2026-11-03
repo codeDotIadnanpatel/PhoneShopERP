@@ -5,7 +5,7 @@ namespace PhoneShopErp.Platform.Tenancy;
 /// The context is established exactly once by the request pipeline and cleared
 /// when the scope ends. Nothing in a module may set it directly.
 /// </summary>
-public static sealed class TenantContextAccessor
+public static class TenantContextAccessor
 {
     private static readonly AsyncLocal<Holder?> Ambient = new();
 

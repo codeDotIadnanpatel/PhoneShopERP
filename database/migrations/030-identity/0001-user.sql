@@ -34,7 +34,27 @@ CREATE TABLE identity.user (
 ALTER TABLE identity.user ENABLE ROW LEVEL SECURITY;
 ALTER TABLE identity.user FORCE ROW LEVEL SECURITY;
 
+-- Read: the caller's own global user row, resolved either by the provider
+-- subject (pre-tenant bootstrap read) or by the internal user id (tenant
+-- context). Both helpers are non-throwing, so a request with no identity
+-- context sees no rows instead of raising from a policy expression. Tenant data
+-- access never depends on this table: every tenant-owned policy uses the tenant
+-- id from the trusted context.
 CREATE POLICY user_self_access ON identity.user
+    FOR SELECT
+    USING (
+        subject = platform.try_current_subject()
+        OR id = platform.try_current_user_id()
+    );
+
+-- Write: a user row may only be created or updated for the authenticated
+-- subject. The internal user id is never client-supplied.
+CREATE POLICY user_self_write ON identity.user
+    FOR INSERT
+    WITH CHECK (subject = platform.current_subject());
+
+CREATE POLICY user_self_update ON identity.user
+    FOR UPDATE
     USING (subject = platform.current_subject())
     WITH CHECK (subject = platform.current_subject());
 

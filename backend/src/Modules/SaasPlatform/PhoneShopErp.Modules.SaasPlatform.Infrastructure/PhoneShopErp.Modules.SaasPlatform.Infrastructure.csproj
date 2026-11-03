@@ -7,7 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PhoneShopErp.Modules.SaasPlatform.Application\PhoneShopErp.Modules.SaasPlatform.Application.csproj" />
-    <ProjectReference Include="..\..\PhoneShopErp.Persistence\PhoneShopErp.Persistence.csproj" />
+    <ProjectReference Include="..\..\..\PhoneShopErp.Persistence\PhoneShopErp.Persistence.csproj" />
   </ItemGroup>
 
 </Project>

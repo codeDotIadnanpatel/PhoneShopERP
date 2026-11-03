@@ -197,7 +197,7 @@ ALTER TABLE identity.platform_grant FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY platform_grant_self_read ON identity.platform_grant
     FOR SELECT
-    USING (user_id = platform.current_user_id());
+    USING (user_id = platform.try_current_user_id());
 
 -- -----------------------------------------------------------------------------
 -- Phase 01 permission catalogue

@@ -118,6 +118,26 @@ internal sealed class PostgresUnitOfWork : IUnitOfWork
             cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task ApplyPreTenantUserAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        if (IsCompleted)
+        {
+            throw new InvalidOperationException("The unit of work has already completed.");
+        }
+
+        if (userId == Guid.Empty)
+        {
+            throw new ArgumentException("User identifier must not be empty.", nameof(userId));
+        }
+
+        await SetContextAsync(
+            new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                [PostgresContextSettings.UserId] = userId.ToString("D"),
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task CommitAsync(CancellationToken cancellationToken)
     {
         if (IsCompleted)

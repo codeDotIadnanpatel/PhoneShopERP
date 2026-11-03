@@ -15,4 +15,10 @@
     <PackageReference Include="Npgsql" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The database tests hold the production advisory lock key to prove
+         concurrent runs serialise, and call MigrationRunner directly. -->
+    <InternalsVisibleTo Include="PhoneShopErp.Database.Tests" />
+  </ItemGroup>
+
 </Project>

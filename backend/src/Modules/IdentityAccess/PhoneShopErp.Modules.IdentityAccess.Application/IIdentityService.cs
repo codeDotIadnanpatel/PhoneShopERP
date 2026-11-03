@@ -12,6 +12,16 @@ public interface ISessionResolver
         CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Phase 01 identity slice: provisioning, the caller's own memberships, and the
+/// session lifecycle.
+///
+/// Device registration and role administration (create/assign/revoke) are
+/// deliberately absent: their write paths are not implemented in Phase 01, and an
+/// interface member that throws <c>NOT_IMPLEMENTED</c> would imply a contract the
+/// platform does not honour. The initial owner grant is the only role
+/// administration Phase 01 performs, inside onboarding.
+/// </summary>
 public interface IIdentityService : ISessionResolver
 {
     /// <summary>
@@ -23,48 +33,39 @@ public interface IIdentityService : ISessionResolver
         AuthenticatedPrincipal principal,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The caller's own memberships, readable before a tenant is selected. Tenant
+    /// slug and display name are included so the client can render a tenant
+    /// picker; no other tenant data is exposed by this path.
+    /// </summary>
     Task<IReadOnlyList<MembershipSummary>> GetMyMembershipsAsync(
         AuthenticatedPrincipal principal,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Creates the application session for one tenant. Switching tenant revokes
+    /// the current session and creates a new one; there is no in-place tenant
+    /// mutation (ADR-0013).
+    /// </summary>
     Task<SessionSummary> CreateSessionAsync(
         AuthenticatedPrincipal principal,
         CreateSessionRequest request,
         SessionRequestMetadata metadata,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Revokes the caller's own session, or any session in the current tenant when
+    /// the session holds <c>session.revoke</c>. Requires a resolved tenant context.
+    /// </summary>
     Task RevokeSessionAsync(
         Guid sessionId,
         string reason,
         CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<SessionSummary>> GetMySessionsAsync(
-        AuthenticatedPrincipal principal,
-        CancellationToken cancellationToken);
-
-    Task<IReadOnlyList<DeviceSummary>> GetMyDevicesAsync(CancellationToken cancellationToken);
-
-    Task RevokeDeviceAsync(Guid deviceId, string reason, CancellationToken cancellationToken);
-
-    Task<IReadOnlyList<PermissionSummary>> GetPermissionsAsync(CancellationToken cancellationToken);
-
-    Task<IReadOnlyList<RoleSummary>> GetRolesAsync(CancellationToken cancellationToken);
-
-    Task<RoleSummary> CreateRoleAsync(CreateRoleRequest request, CancellationToken cancellationToken);
-
-    Task<RoleSummary> SetRolePermissionsAsync(
-        Guid roleId,
-        SetRolePermissionsRequest request,
-        CancellationToken cancellationToken);
-
-    Task<RoleAssignmentSummary> AssignRoleAsync(
-        AssignRoleRequest request,
-        CancellationToken cancellationToken);
-
-    Task RevokeRoleAssignmentAsync(
-        Guid assignmentId,
-        string reason,
-        CancellationToken cancellationToken);
-
-    Task<IReadOnlyList<string>> GetEffectivePermissionsAsync(CancellationToken cancellationToken);
+    /// <summary>
+    /// The caller's own sessions in the current tenant. Requires a resolved tenant
+    /// context; the pre-tenant read policy exposes a session only by its provider
+    /// reference, which is not an enumeration key.
+    /// </summary>
+    Task<IReadOnlyList<SessionSummary>> GetMySessionsAsync(CancellationToken cancellationToken);
 }

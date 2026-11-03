@@ -60,29 +60,5 @@ REVOKE ALL ON TABLE platform.idempotency_record FROM PUBLIC;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE platform.idempotency_record TO erp_app;
 GRANT SELECT ON TABLE platform.idempotency_record TO erp_platform_admin;
 
-CREATE TABLE platform.onboarding_request (
-    idempotency_key text NOT NULL,
-    request_hash text NOT NULL,
-    scope text NOT NULL,
-    status text NOT NULL,
-    created_tenant_id uuid NOT NULL,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    row_version integer NOT NULL DEFAULT 1,
-    CONSTRAINT pk_onboarding_request PRIMARY KEY (idempotency_key),
-    CONSTRAINT ck_onboarding_request_scope CHECK (scope = 'tenant.create'),
-    CONSTRAINT ck_onboarding_request_status CHECK (status IN ('in_progress', 'completed')),
-    CONSTRAINT ck_onboarding_request_key_length CHECK (char_length(idempotency_key) BETWEEN 8 AND 128),
-    CONSTRAINT ck_onboarding_request_hash CHECK (request_hash ~ '^[0-9a-f]{64}$')
-);
-
-COMMENT ON TABLE platform.onboarding_request IS
-    'Pre-tenant idempotency for tenant creation only. Holds no tenant business payload: an opaque key, a request fingerprint and the generated tenant identifier.';
-
-CREATE TRIGGER trg_onboarding_request_row_version
-    BEFORE UPDATE ON platform.onboarding_request
-    FOR EACH ROW EXECUTE FUNCTION platform.bump_row_version();
-
-REVOKE ALL ON TABLE platform.onboarding_request FROM PUBLIC;
-GRANT SELECT, INSERT, UPDATE ON TABLE platform.onboarding_request TO erp_app;
-GRANT SELECT ON TABLE platform.onboarding_request TO erp_platform_admin;
+-- Pre-tenant onboarding idempotency lives in 030-identity/0050-onboarding-request.sql
+-- because it references identity.user and therefore must be created after it.

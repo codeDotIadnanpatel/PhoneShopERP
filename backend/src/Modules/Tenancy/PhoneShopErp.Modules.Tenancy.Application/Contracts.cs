@@ -87,10 +87,7 @@ public sealed record CreateRegisterRequest(Guid BranchId, string Code, string Di
 /// Cursor page. The cursor is a UUIDv7 identifier, so it is time ordered and does
 /// not expose an offset that shifts under concurrent inserts.
 /// </summary>
-public sealed record Page<T>(IReadOnlyList<T> Items, Guid? NextCursor)
-{
-    public static Page<T> Empty { get; } = new([], null);
-}
+public sealed record Page<T>(IReadOnlyList<T> Items, Guid? NextCursor);
 
 public sealed record PageRequest(int? Limit, Guid? After)
 {

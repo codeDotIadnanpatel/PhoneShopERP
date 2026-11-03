@@ -94,6 +94,13 @@ public static class SensitiveDataRedactor
 
         if (value is System.Collections.IEnumerable sequence and not string)
         {
+            // A nested object map must be redacted key-by-key, otherwise a
+            // credential nested one level deeper would leak as a key/value pair.
+            if (value is IEnumerable<KeyValuePair<string, object?>> map)
+            {
+                return Redact(map);
+            }
+
             return sequence.Cast<object?>().Select(RedactValue).ToArray();
         }
 

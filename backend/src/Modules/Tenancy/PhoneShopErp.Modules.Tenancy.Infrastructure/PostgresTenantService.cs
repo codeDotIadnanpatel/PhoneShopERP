@@ -23,7 +23,6 @@ public sealed class PostgresTenantService : ITenantService
 {
     private const string CreateScope = "tenant.create";
 
-    private readonly TenantContextAccessor contextAccessor;
     private readonly IPreTenantUnitOfWorkFactory preTenantUnitOfWorkFactory;
     private readonly ITenantUnitOfWorkFactory tenantUnitOfWorkFactory;
     private readonly IOnboardingRequestStore onboardingRequestStore;
@@ -32,7 +31,6 @@ public sealed class PostgresTenantService : ITenantService
     private readonly IClock clock;
 
     public PostgresTenantService(
-        TenantContextAccessor contextAccessor,
         IPreTenantUnitOfWorkFactory preTenantUnitOfWorkFactory,
         ITenantUnitOfWorkFactory tenantUnitOfWorkFactory,
         IOnboardingRequestStore onboardingRequestStore,
@@ -40,7 +38,6 @@ public sealed class PostgresTenantService : ITenantService
         IIdGenerator idGenerator,
         IClock clock)
     {
-        this.contextAccessor = contextAccessor;
         this.preTenantUnitOfWorkFactory = preTenantUnitOfWorkFactory;
         this.tenantUnitOfWorkFactory = tenantUnitOfWorkFactory;
         this.onboardingRequestStore = onboardingRequestStore;
@@ -57,6 +54,18 @@ public sealed class PostgresTenantService : ITenantService
     {
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentNullException.ThrowIfNull(request);
+
+        // Onboarding is reachable only by an authenticated provider subject. An
+        // empty or oversized subject is rejected here, before any transaction, so
+        // an unauthenticated caller cannot create a tenant or even a user row.
+        if (string.IsNullOrWhiteSpace(owner.Subject) || owner.Subject.Length > 255)
+        {
+            throw new PlatformException(
+                ErrorCodes.Unauthenticated,
+                "The authenticated subject could not be resolved.",
+                401);
+        }
+
         RequireIdempotencyKey(idempotencyKey);
 
         var slug = TenancyValidation.RequireSlug(request.Slug);
@@ -70,7 +79,9 @@ public sealed class PostgresTenantService : ITenantService
             .BeginAsync(PreTenantContext.ForSubject(owner.Subject), cancellationToken)
             .ConfigureAwait(false);
 
-        var user = await EnsureUserAsync(unitOfWork, owner, cancellationToken).ConfigureAwait(false);        if (!string.Equals(user.Status, "active", StringComparison.Ordinal))
+        var user = await EnsureUserAsync(unitOfWork, owner, cancellationToken).ConfigureAwait(false);
+
+        if (!string.Equals(user.Status, "active", StringComparison.Ordinal))
         {
             throw new PlatformException(
                 ErrorCodes.Forbidden,
@@ -79,6 +90,14 @@ public sealed class PostgresTenantService : ITenantService
         }
 
         var candidateTenantId = idGenerator.NewId();
+
+        // The pre-tenant idempotency row is keyed by the resolved internal user
+        // id, so bind it before reserving. The id comes from the user row, not
+        // from the request.
+        await unitOfWork
+            .ApplyPreTenantUserAsync(user.Id, cancellationToken)
+            .ConfigureAwait(false);
+
         var reservation = await onboardingRequestStore.ReserveAsync(
             unitOfWork,
             idempotencyKey,
@@ -153,10 +172,10 @@ public sealed class PostgresTenantService : ITenantService
                 idGenerator.NewId(),
                 candidateTenantId,
                 now,
-                "user",
+                AuditActorTypes.User,
                 user.Id,
-                "tenant_create",
-                "success",
+                AuditActions.TenantCreated,
+                AuditOutcomes.Success,
                 "tenant",
                 candidateTenantId,
                 null,
@@ -196,13 +215,13 @@ public sealed class PostgresTenantService : ITenantService
         Guid tenantId,
         string reason,
         CancellationToken cancellationToken) =>
-        ChangeStatusAsync(tenantId, "suspended", "tenant_suspend", reason, cancellationToken);
+        ChangeStatusAsync(tenantId, "suspended", AuditActions.TenantSuspended, reason, cancellationToken);
 
     public Task<TenantSummary> ReactivateAsync(
         Guid tenantId,
         string reason,
         CancellationToken cancellationToken) =>
-        ChangeStatusAsync(tenantId, "active", "tenant_reactivate", reason, cancellationToken);
+        ChangeStatusAsync(tenantId, "active", AuditActions.TenantReactivated, reason, cancellationToken);
 
     private async Task<TenantSummary> ChangeStatusAsync(
         Guid tenantId,
@@ -249,10 +268,10 @@ public sealed class PostgresTenantService : ITenantService
                 idGenerator.NewId(),
                 tenantId,
                 now,
-                "user",
+                AuditActorTypes.User,
                 context.UserId,
                 action,
-                "success",
+                AuditOutcomes.Success,
                 "tenant",
                 tenantId,
                 null,
@@ -264,9 +283,9 @@ public sealed class PostgresTenantService : ITenantService
         return summary;
     }
 
-    private TenantContext RequireContext(Guid tenantId)
+    private static TenantContext RequireContext(Guid tenantId)
     {
-        var context = contextAccessor.Current
+        var context = TenantContextAccessor.Current
             ?? throw new PlatformException(
                 ErrorCodes.TenantContextMissing,
                 "A tenant context is required for this operation.",
@@ -527,10 +546,10 @@ public sealed class PostgresTenantService : ITenantService
                 idGenerator.NewId(),
                 tenantId,
                 now,
-                "system",
+                AuditActorTypes.System,
                 userId,
-                "role_bootstrap_owner",
-                "success",
+                AuditActions.RoleAssigned,
+                AuditOutcomes.Success,
                 "role",
                 roleId,
                 null,

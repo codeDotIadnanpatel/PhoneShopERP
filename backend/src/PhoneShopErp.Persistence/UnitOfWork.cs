@@ -71,6 +71,15 @@ public interface IUnitOfWork : IAsyncDisposable
         Guid userId,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Binds the resolved internal user id into an open pre-tenant transaction.
+    /// It exists for exactly one flow: onboarding, where the user row is created
+    /// or resolved before the tenant exists, and the pre-tenant idempotency row
+    /// is keyed by that internal id. The id must come from the resolved user row,
+    /// never from the request.
+    /// </summary>
+    Task ApplyPreTenantUserAsync(Guid userId, CancellationToken cancellationToken);
+
     Task CommitAsync(CancellationToken cancellationToken);
 
     Task RollbackAsync(CancellationToken cancellationToken);

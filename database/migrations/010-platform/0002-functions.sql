@@ -196,6 +196,28 @@ BEGIN
 END;
 $fn$;
 
+-- Non-throwing variant, used by the global identity table where a request may
+-- legitimately have no subject (for example a tenant-scoped query that resolves
+-- the caller by internal user id). It returns NULL when the context is absent;
+-- it never falls back to a different identity source.
+CREATE OR REPLACE FUNCTION platform.try_current_subject()
+RETURNS text
+LANGUAGE plpgsql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $fn$
+DECLARE
+    raw text := current_setting('app.subject', true);
+BEGIN
+    IF raw IS NULL OR btrim(raw) = '' THEN
+        RETURN NULL;
+    END IF;
+
+    RETURN raw;
+END;
+$fn$;
+
 -- The provider session identifier carried by the validated token (`sid`). It is
 -- the only pre-tenant lookup key for an application session besides the user id,
 -- and it is never used for authorisation on its own.
@@ -212,6 +234,24 @@ BEGIN
     IF raw IS NULL OR btrim(raw) = '' THEN
         RAISE EXCEPTION 'Session reference is not set (app.session_reference)'
             USING ERRCODE = '42501';
+    END IF;
+
+    RETURN raw;
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION platform.try_current_session_reference()
+RETURNS text
+LANGUAGE plpgsql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $fn$
+DECLARE
+    raw text := current_setting('app.session_reference', true);
+BEGIN
+    IF raw IS NULL OR btrim(raw) = '' THEN
+        RETURN NULL;
     END IF;
 
     RETURN raw;
@@ -256,7 +296,9 @@ REVOKE ALL ON FUNCTION platform.try_current_user_id() FROM PUBLIC;
 REVOKE ALL ON FUNCTION platform.current_session_id() FROM PUBLIC;
 REVOKE ALL ON FUNCTION platform.try_current_session_id() FROM PUBLIC;
 REVOKE ALL ON FUNCTION platform.current_session_reference() FROM PUBLIC;
+REVOKE ALL ON FUNCTION platform.try_current_session_reference() FROM PUBLIC;
 REVOKE ALL ON FUNCTION platform.current_subject() FROM PUBLIC;
+REVOKE ALL ON FUNCTION platform.try_current_subject() FROM PUBLIC;
 REVOKE ALL ON FUNCTION platform.bump_row_version() FROM PUBLIC;
 REVOKE ALL ON FUNCTION platform.reject_mutation() FROM PUBLIC;
 
@@ -267,7 +309,9 @@ GRANT EXECUTE ON FUNCTION platform.try_current_user_id() TO erp_app;
 GRANT EXECUTE ON FUNCTION platform.current_session_id() TO erp_app;
 GRANT EXECUTE ON FUNCTION platform.try_current_session_id() TO erp_app;
 GRANT EXECUTE ON FUNCTION platform.current_session_reference() TO erp_app;
+GRANT EXECUTE ON FUNCTION platform.try_current_session_reference() TO erp_app;
 GRANT EXECUTE ON FUNCTION platform.current_subject() TO erp_app;
+GRANT EXECUTE ON FUNCTION platform.try_current_subject() TO erp_app;
 GRANT EXECUTE ON FUNCTION platform.bump_row_version() TO erp_app;
 GRANT EXECUTE ON FUNCTION platform.reject_mutation() TO erp_app;
 
@@ -278,6 +322,8 @@ GRANT EXECUTE ON FUNCTION platform.try_current_user_id() TO erp_platform_admin;
 GRANT EXECUTE ON FUNCTION platform.current_session_id() TO erp_platform_admin;
 GRANT EXECUTE ON FUNCTION platform.try_current_session_id() TO erp_platform_admin;
 GRANT EXECUTE ON FUNCTION platform.current_session_reference() TO erp_platform_admin;
+GRANT EXECUTE ON FUNCTION platform.try_current_session_reference() TO erp_platform_admin;
 GRANT EXECUTE ON FUNCTION platform.current_subject() TO erp_platform_admin;
+GRANT EXECUTE ON FUNCTION platform.try_current_subject() TO erp_platform_admin;
 GRANT EXECUTE ON FUNCTION platform.bump_row_version() TO erp_platform_admin;
 GRANT EXECUTE ON FUNCTION platform.reject_mutation() TO erp_platform_admin;

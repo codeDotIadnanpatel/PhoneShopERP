@@ -29,7 +29,10 @@ CREATE TABLE platform.audit_event (
     CONSTRAINT pk_audit_event PRIMARY KEY (id),
     CONSTRAINT ck_audit_event_actor_type CHECK (actor_type IN ('user', 'system', 'platform_admin')),
     CONSTRAINT ck_audit_event_outcome CHECK (outcome IN ('success', 'denied', 'failure')),
-    CONSTRAINT ck_audit_event_action CHECK (action ~ '^[a-z][a-z0-9_]{2,99}$'),
+-- Action names are dotted domain verbs (see Platform.Audit.AuditActions):
+-- `tenant.created`, `role_assignment.revoked`. A single-segment verb is also
+-- accepted for pre-tenant/system events.
+    CONSTRAINT ck_audit_event_action CHECK (action ~ '^[a-z][a-z0-9_]{2,63}(\.[a-z][a-z0-9_]{2,63}){0,2}$'),
     CONSTRAINT ck_audit_event_correlation CHECK (correlation_id IS NULL OR correlation_id ~ '^[A-Za-z0-9._:-]{8,128}$'),
     CONSTRAINT ck_audit_event_target_type CHECK (target_type IS NULL OR target_type ~ '^[a-z][a-z0-9_]{1,63}$')
 );

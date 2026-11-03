@@ -240,9 +240,10 @@ public sealed class PostgresOnboardingRequestStore : IOnboardingRequestStore
     {
         const string insert = """
             INSERT INTO platform.onboarding_request (
-                idempotency_key, request_hash, scope, status, created_tenant_id)
-            VALUES (@key, @hash, 'tenant.create', 'in_progress', @tenant_id)
-            ON CONFLICT (idempotency_key) DO NOTHING
+                requested_by_user_id, idempotency_key, request_hash, scope, status, created_tenant_id)
+            VALUES (
+                platform.current_user_id(), @key, @hash, 'tenant.create', 'in_progress', @tenant_id)
+            ON CONFLICT (requested_by_user_id, idempotency_key) DO NOTHING
             RETURNING idempotency_key;
             """;
 
@@ -262,7 +263,9 @@ public sealed class PostgresOnboardingRequestStore : IOnboardingRequestStore
         const string select = """
             SELECT request_hash, status, created_tenant_id
             FROM platform.onboarding_request
-            WHERE idempotency_key = @key AND scope = 'tenant.create';
+            WHERE idempotency_key = @key
+              AND requested_by_user_id = platform.current_user_id()
+              AND scope = 'tenant.create';
             """;
 
         await using var read = new NpgsqlCommand(select, unitOfWork.Connection, unitOfWork.Transaction);
@@ -304,7 +307,8 @@ public sealed class PostgresOnboardingRequestStore : IOnboardingRequestStore
         const string sql = """
             UPDATE platform.onboarding_request
             SET status = 'completed', created_tenant_id = @tenant_id
-            WHERE idempotency_key = @key AND scope = 'tenant.create' AND status = 'in_progress';
+            WHERE idempotency_key = @key AND scope = 'tenant.create' AND status = 'in_progress'
+              AND requested_by_user_id = platform.current_user_id();
             """;
 
         await using var command = new NpgsqlCommand(sql, unitOfWork.Connection, unitOfWork.Transaction);
@@ -320,7 +324,8 @@ public sealed class PostgresOnboardingRequestStore : IOnboardingRequestStore
     {
         const string sql = """
             DELETE FROM platform.onboarding_request
-            WHERE idempotency_key = @key AND scope = 'tenant.create' AND status = 'in_progress';
+            WHERE idempotency_key = @key AND scope = 'tenant.create' AND status = 'in_progress'
+              AND requested_by_user_id = platform.current_user_id();
             """;
 
         await using var command = new NpgsqlCommand(sql, unitOfWork.Connection, unitOfWork.Transaction);

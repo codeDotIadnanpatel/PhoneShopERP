@@ -18,6 +18,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\IdentityAccess\PhoneShopErp.Modules.IdentityAccess.Application\PhoneShopErp.Modules.IdentityAccess.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\IdentityAccess\PhoneShopErp.Modules.IdentityAccess.Infrastructure\PhoneShopErp.Modules.IdentityAccess.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Tenancy\PhoneShopErp.Modules.Tenancy.Application\PhoneShopErp.Modules.Tenancy.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Tenancy\PhoneShopErp.Modules.Tenancy.Infrastructure\PhoneShopErp.Modules.Tenancy.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\PhoneShopErp.Migrations\PhoneShopErp.Migrations.csproj" />
     <ProjectReference Include="..\..\src\PhoneShopErp.Persistence\PhoneShopErp.Persistence.csproj" />
     <ProjectReference Include="..\..\src\PhoneShopErp.Platform\PhoneShopErp.Platform.csproj" />
   </ItemGroup>

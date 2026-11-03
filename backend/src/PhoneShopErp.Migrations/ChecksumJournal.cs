@@ -42,7 +42,7 @@ public sealed class ChecksumJournal : IJournal
                 applied_by text NOT NULL DEFAULT current_user,
                 duration_ms integer NULL,
                 CONSTRAINT pk_schema_migration PRIMARY KEY (script_name),
-                CONSTRAINT ck_schema_migration_checksum CHECK (checksum ~ '^[0-9a-f]{64}$')
+                CONSTRAINT ck_schema_migration_checksum CHECK (checksum ~ '^[0-9a-f]+$' AND length(checksum) = 64)
             );
 
             REVOKE ALL ON TABLE {QualifiedTableName} FROM PUBLIC;
