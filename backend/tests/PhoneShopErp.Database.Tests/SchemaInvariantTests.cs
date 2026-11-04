@@ -138,6 +138,81 @@ public sealed class SchemaInvariantTests
         Assert.Empty(rows);
     }
 
+    /// <summary>
+    /// Every tenant-owned table must be bound to a tenant through a validated
+    /// foreign key that includes <c>tenant_id</c>, so a row can never be written
+    /// against a tenant that does not exist.
+    ///
+    /// A direct reference to <c>tenancy.tenant</c> is not the only valid shape:
+    /// <c>identity.role_permission</c> and <c>identity.role_assignment</c>
+    /// reference <c>identity.role (tenant_id, id)</c>, which is itself rooted in
+    /// <c>tenancy.tenant</c>. Both are accepted. An unvalidated constraint is
+    /// treated as missing: it would not protect rows that already existed when
+    /// it was created.
+    /// </summary>
+    [Fact]
+    public async Task EveryTenantOwnedTable_IsBoundToATenantByAValidatedForeignKey()
+    {
+        var tablesWithoutTenantGuard = await Database.QueryAsync(
+            """
+            SELECT n.nspname || '.' || c.relname
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname IN ('platform', 'tenancy', 'identity', 'saas')
+              AND c.relkind = 'r'
+              -- The tenant root is its own tenant; ck_tenant_tenant_id_matches_id
+              -- keeps id and tenant_id in step.
+              AND NOT (n.nspname = 'tenancy' AND c.relname = 'tenant')
+              AND EXISTS (
+                  SELECT 1 FROM pg_attribute a
+                  WHERE a.attrelid = c.oid
+                    AND a.attname = 'tenant_id'
+                    AND a.attnum > 0
+                    AND NOT a.attisdropped)
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM pg_constraint con
+                  WHERE con.contype = 'f'
+                    AND con.conrelid = c.oid
+                    AND con.convalidated
+                    AND EXISTS (
+                        SELECT 1 FROM pg_attribute child
+                        WHERE child.attrelid = con.conrelid
+                          AND child.attnum = ANY (con.conkey)
+                          AND child.attname = 'tenant_id'))
+            ORDER BY 1;
+            """,
+            "postgres");
+
+        Assert.Empty(tablesWithoutTenantGuard);
+
+        // 010-platform creates these three tables before tenancy.tenant exists,
+        // so 020-tenancy/0003-platform-tenant-fks.sql adds the direct reference.
+        // Assert it explicitly rather than relying on the generic shape above.
+        var platformTablesWithoutDirectTenantReference = await Database.QueryAsync(
+            """
+            SELECT t.name
+            FROM unnest(ARRAY[
+                'platform.audit_event',
+                'platform.idempotency_record',
+                'platform.outbox_message']) AS t(name)
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint con
+                WHERE con.contype = 'f'
+                  AND con.conrelid = t.name::regclass
+                  AND con.confrelid = 'tenancy.tenant'::regclass
+                  AND con.convalidated
+                  AND (SELECT a.attnum FROM pg_attribute a
+                       WHERE a.attrelid = con.conrelid AND a.attname = 'tenant_id')
+                      = ANY (con.conkey))
+            ORDER BY 1;
+            """,
+            "postgres");
+
+        Assert.Empty(platformTablesWithoutDirectTenantReference);
+    }
+
     [Fact]
     public async Task AppendOnlyLedgers_HaveTheRejectMutationTrigger()
     {

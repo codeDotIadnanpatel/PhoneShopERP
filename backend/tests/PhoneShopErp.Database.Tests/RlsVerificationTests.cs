@@ -390,6 +390,164 @@ public sealed class RlsVerificationTests
         }
     }
 
+    /// <summary>
+    /// The cross-tenant UPDATE/DELETE assertions above run as <c>erp_app</c>, so
+    /// on the three tables where that role holds no UPDATE grant the statement
+    /// is rejected by the privilege check before the policy is ever evaluated.
+    /// A missing or wrong policy could therefore go unnoticed.
+    ///
+    /// <c>erp_migrator</c> connects with <c>ALTER ROLE ... SET role = erp_owner</c>.
+    /// <c>erp_owner</c> owns every managed table but is NOBYPASSRLS and every
+    /// table is FORCE RLS, so running the same statements as the owner exercises
+    /// the policy itself for all 18 tenant tables without adding a single grant.
+    /// </summary>
+    [Fact]
+    public async Task CrossTenantMutation_IsFilteredByRlsEvenWhereTheRuntimeRoleHasNoGrant()
+    {
+        var a = await SeedTenantAsync("owner-a");
+        var b = await SeedTenantAsync("owner-b");
+
+        await using var connection = new NpgsqlConnection(Database.ConnectionStringFor("erp_migrator"));
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        await using (var who = new NpgsqlCommand(
+            "SELECT current_user, (SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user);",
+            connection,
+            transaction))
+        await using (var reader = await who.ExecuteReaderAsync())
+        {
+            Assert.True(await reader.ReadAsync());
+            Assert.Equal("erp_owner", reader.GetString(0));
+            Assert.False(reader.GetBoolean(1), "The mutation probe must run under forced RLS.");
+        }
+
+        await ApplyContextAsync(
+            connection,
+            transaction,
+            a.TenantId.ToString(),
+            a.UserId.ToString(),
+            subject: null,
+            sessionReference: null);
+
+        try
+        {
+            foreach (var table in TenantOwnedTables)
+            {
+                var before = await CountAsync(table, b.TenantId);
+                Assert.True(before >= 1, $"{table}: tenant B was not seeded.");
+
+                await using (var update = new NpgsqlCommand(
+                    CrossTenantUpdateSql(table, b.TenantId),
+                    connection,
+                    transaction))
+                {
+                    Assert.Equal(0, await update.ExecuteNonQueryAsync());
+                }
+
+                Assert.Equal(before, await CountAsync(table, b.TenantId));
+
+                await using (var delete = new NpgsqlCommand(
+                    $"DELETE FROM {table} WHERE tenant_id = '{b.TenantId}';",
+                    connection,
+                    transaction))
+                {
+                    Assert.Equal(0, await delete.ExecuteNonQueryAsync());
+                }
+
+                Assert.Equal(before, await CountAsync(table, b.TenantId));
+            }
+        }
+        finally
+        {
+            await transaction.RollbackAsync();
+        }
+    }
+
+    /// <summary>
+    /// The audit ledger documents "structured, bounded fields". These assertions
+    /// prove the bounds are enforced by the schema and not only by application
+    /// code, and that a value at the documented limit is still accepted.
+    /// </summary>
+    [Fact]
+    public async Task AuditAndSecurityEventFields_RejectOversizedValues()
+    {
+        var tenant = await SeedTenantAsync("bounds");
+
+        await Database.ExecuteAsync(
+            $"""
+            INSERT INTO platform.security_event (
+                id, category, severity, outcome, actor_reference, detail)
+            VALUES (
+                '{Guid.NewGuid()}', 'rls_bounds', 'info', 'success', repeat('a', 200),
+                jsonb_build_object('blob', repeat('b', 8000)));
+            """,
+            "erp_app");
+
+        await Database.ExecuteAsync(
+            $"""
+            INSERT INTO platform.audit_event (
+                id, tenant_id, actor_type, action, outcome, reason, detail)
+            VALUES (
+                '{Guid.NewGuid()}', '{tenant.TenantId}', 'system', 'rls.bounds', 'success',
+                repeat('c', 1000), jsonb_build_object('blob', repeat('d', 8000)));
+            """,
+            "postgres");
+
+        await AssertCheckRejectedAsync(
+            "platform.security_event: 201-character actor_reference",
+            () => Database.ExecuteAsync(
+                $"""
+                INSERT INTO platform.security_event (
+                    id, category, severity, outcome, actor_reference)
+                VALUES (
+                    '{Guid.NewGuid()}', 'rls_bounds', 'info', 'success', repeat('a', 201));
+                """,
+                "erp_app"));
+
+        await AssertCheckRejectedAsync(
+            "platform.security_event: detail larger than 8 KiB",
+            () => Database.ExecuteAsync(
+                $"""
+                INSERT INTO platform.security_event (
+                    id, category, severity, outcome, detail)
+                VALUES (
+                    '{Guid.NewGuid()}', 'rls_bounds', 'info', 'success',
+                    jsonb_build_object('blob', repeat('b', 9000)));
+                """,
+                "erp_app"));
+
+        await AssertCheckRejectedAsync(
+            "platform.audit_event: 1001-character reason",
+            () => ExecuteAsAsync(
+                tenant.TenantId.ToString(),
+                tenant.UserId.ToString(),
+                subject: null,
+                sessionReference: null,
+                $"""
+                INSERT INTO platform.audit_event (
+                    id, tenant_id, actor_type, action, outcome, reason)
+                VALUES (
+                    '{Guid.NewGuid()}', '{tenant.TenantId}', 'system', 'rls.bounds',
+                    'success', repeat('c', 1001));
+                """));
+
+        await AssertCheckRejectedAsync(
+            "platform.audit_event: detail larger than 8 KiB",
+            () => ExecuteAsAsync(
+                tenant.TenantId.ToString(),
+                tenant.UserId.ToString(),
+                subject: null,
+                sessionReference: null,
+                $"""
+                INSERT INTO platform.audit_event (
+                    id, tenant_id, actor_type, action, outcome, detail)
+                VALUES (
+                    '{Guid.NewGuid()}', '{tenant.TenantId}', 'system', 'rls.bounds',
+                    'success', jsonb_build_object('blob', repeat('d', 9000)));
+                """));
+    }
+
     [Fact]
     public async Task MissingMalformedOrNilTenantContext_FailsClosed()
     {
@@ -1118,6 +1276,26 @@ public sealed class RlsVerificationTests
         }
 
         Assert.Fail($"{label}: the statement was accepted but the runtime role has no grant.");
+    }
+
+    private static async Task AssertCheckRejectedAsync(string label, Func<Task> action)
+    {
+        try
+        {
+            await action();
+        }
+        catch (PostgresException exception)
+        {
+            Assert.True(
+                exception.SqlState == "23514",
+                $"{label}: expected SQLSTATE 23514, got {exception.SqlState}: {exception.MessageText}");
+            Assert.True(
+                exception.MessageText.Contains("violates check constraint", StringComparison.Ordinal),
+                $"{label}: expected a check-constraint rejection, got: {exception.MessageText}");
+            return;
+        }
+
+        Assert.Fail($"{label}: the statement was accepted but the value is out of bounds.");
     }
 
     private static async Task AssertContextRejectedAsync(

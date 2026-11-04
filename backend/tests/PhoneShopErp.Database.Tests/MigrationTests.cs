@@ -17,8 +17,8 @@ public sealed class MigrationTests
 
         var outcome = await database.MigrateAsync();
 
-        Assert.Equal(21, outcome.TotalApplied);
-        Assert.Equal(21, outcome.AppliedThisRun);
+        Assert.Equal(23, outcome.TotalApplied);
+        Assert.Equal(23, outcome.AppliedThisRun);
 
         var tables = await database.ScalarAsync<long>(
             """
@@ -46,7 +46,7 @@ public sealed class MigrationTests
         var rerun = await database.MigrateAsync();
 
         Assert.Equal(0, rerun.AppliedThisRun);
-        Assert.Equal(21, rerun.TotalApplied);
+        Assert.Equal(23, rerun.TotalApplied);
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public sealed class MigrationTests
         var verify = await database.MigrateAsync(verifyOnly: true);
 
         Assert.Equal(0, verify.AppliedThisRun);
-        Assert.Equal(21, verify.TotalApplied);
+        Assert.Equal(23, verify.TotalApplied);
     }
 
     [Fact]
@@ -181,7 +181,7 @@ public sealed class MigrationTests
         }
 
         var outcome = await run.WaitAsync(TimeSpan.FromSeconds(60));
-        Assert.Equal(21, outcome.AppliedThisRun);
+        Assert.Equal(23, outcome.AppliedThisRun);
     }
 
     [Fact]
