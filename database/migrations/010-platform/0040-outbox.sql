@@ -31,6 +31,12 @@ CREATE INDEX ix_outbox_message_pending
     ON platform.outbox_message (available_at, id)
     WHERE processed_at IS NULL;
 
+-- Tenant-scoped reads are always filtered by the RLS predicate, so the leading
+-- key must be tenant_id. The cross-tenant dispatcher keeps the global index.
+CREATE INDEX ix_outbox_message_tenant_pending
+    ON platform.outbox_message (tenant_id, available_at, id)
+    WHERE processed_at IS NULL;
+
 ALTER TABLE platform.outbox_message ENABLE ROW LEVEL SECURITY;
 ALTER TABLE platform.outbox_message FORCE ROW LEVEL SECURITY;
 

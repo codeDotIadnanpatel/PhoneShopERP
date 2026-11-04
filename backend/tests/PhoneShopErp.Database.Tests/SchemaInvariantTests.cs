@@ -143,7 +143,10 @@ public sealed class SchemaInvariantTests
     {
         var rows = await Database.QueryAsync(
             """
-            SELECT event_object_table, trigger_name
+            -- information_schema.triggers has one row per triggering event, so a
+            -- BEFORE UPDATE OR DELETE trigger appears twice. The invariant is that
+            -- each ledger has the guard, not how many events it fires on.
+            SELECT DISTINCT event_object_table, trigger_name
             FROM information_schema.triggers
             WHERE trigger_name IN ('trg_audit_event_append_only', 'trg_security_event_append_only')
             ORDER BY 1;

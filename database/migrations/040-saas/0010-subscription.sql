@@ -98,6 +98,11 @@ CREATE TABLE saas.billing_attempt (
     CONSTRAINT ck_billing_attempt_row_version CHECK (row_version > 0)
 );
 
+-- Tenant-scoped reads are always filtered by the RLS predicate, so the leading
+-- key must be tenant_id.
+CREATE INDEX ix_billing_attempt_tenant_attempted
+    ON saas.billing_attempt (tenant_id, attempted_at DESC);
+
 COMMENT ON TABLE saas.billing_attempt IS
     'Payment-provider attempt metadata only. No card number, expiry, CVV or tokenised card credential may be stored. Amounts are omitted until AG-04 fixes money precision.';
 

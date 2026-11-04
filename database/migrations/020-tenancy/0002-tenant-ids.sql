@@ -37,10 +37,7 @@ AS $fn$
     SELECT id FROM tenancy.tenant ORDER BY id
 $fn$;
 
--- Privileges and comment are set while erp_owner still owns the function; after
--- the ownership transfer erp_owner is no longer the owner and can no longer grant.
 REVOKE ALL ON FUNCTION platform.tenant_ids() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION platform.tenant_ids() TO erp_owner;
 
 COMMENT ON FUNCTION platform.tenant_ids() IS
     'Data-migration-only tenant enumeration. Returns identifiers, no business payload. Owned by erp_platform_admin because forced RLS applies to erp_owner; not executable by erp_app.';
@@ -48,3 +45,11 @@ COMMENT ON FUNCTION platform.tenant_ids() IS
 GRANT CREATE ON SCHEMA platform TO erp_platform_admin;
 ALTER FUNCTION platform.tenant_ids() OWNER TO erp_platform_admin;
 REVOKE CREATE ON SCHEMA platform FROM erp_platform_admin;
+
+-- Changing owner removes the old owner's privileges, including an explicit
+-- grant made while it still owned the function. Grant EXECUTE back to erp_owner
+-- as the new owner. SET LOCAL is scoped to this script's transaction, so the
+-- next migration script still runs as erp_owner.
+SET LOCAL ROLE erp_platform_admin;
+GRANT EXECUTE ON FUNCTION platform.tenant_ids() TO erp_owner;
+RESET ROLE;
