@@ -1,7 +1,7 @@
 # Phase 01 Stage 2 — Residual Security Review
 
-**Branch:** `Phase01-Audit` (checkpoint `ef972c7`, changes left uncommitted)
-**Date:** 2026-11-04
+**Branch:** `Phase01-Audit` (HEAD `94848c1`, also the commit tracked by `origin/Phase01-Audit`)
+**Date:** 2026-11-04 (prepared); 2026-11-05 (final verification)
 **Reviewer:** AI assistant (review evidence only; no approval authority)
 **Scope:** The five residual observations from the Phase 01 Stage 1 security review, and the
 database/migration foundation they touch (`database/`, `backend/tests/PhoneShopErp.Database.Tests/`).
@@ -11,7 +11,7 @@ or grants.
 **Verdict:** Four observations were addressed. Two were confirmed defects and fixed (F1, F2/F4);
 one was confirmed intentional and adequately protected, with no change (F3); one remains deferred
 because the code it would test does not exist yet (F5). No RLS policy, grant or role was weakened.
-All changes are uncommitted.
+The Stage 2 change set is commit `94848c1`; this verification pass changed only this report.
 
 ---
 
@@ -156,16 +156,65 @@ Commands and results on this branch, after the changes:
 
 | Command | Result |
 |---|---|
-| `dotnet test tests/PhoneShopErp.Database.Tests/PhoneShopErp.Database.Tests.csproj --no-restore --nologo -v minimal` | **Passed — 99 passed, 0 failed, 0 skipped** (96 before, 3 added) |
-| `dotnet test tests/PhoneShopErp.Database.Tests/... --filter "FullyQualifiedName~MigrationTests"` | **Passed — 10 passed** (clean install, re-run, verify-only, checksum, role assertion, advisory lock, ownership) |
-| `dotnet test backend/PhoneShopErp.slnx --no-restore --nologo -v minimal` | See §4.1 |
+| `dotnet test backend/tests/PhoneShopErp.Database.Tests/PhoneShopErp.Database.Tests.csproj --no-restore --nologo -v minimal` (part of the full-solution run) | **Passed — 99 passed, 0 failed, 0 skipped** (96 before, 3 added) |
+| Targeted migration/security filter (see §4.2) | **Passed — 14 passed, 0 failed, 0 skipped** |
+| `dotnet test backend/PhoneShopErp.slnx --no-restore --nologo -v minimal` | **Passed — 217 passed, 0 failed, 0 skipped** (see §4.1) |
 
 The database suite runs against a throwaway PostgreSQL cluster on `localhost:55432` (overridable
 with `ERPNET_TEST_POSTGRES_ADMIN`); every test provisions and drops its own database.
 
 ### 4.1 Full-solution result
 
-_Recorded after the final run; see the `dotnet test backend/PhoneShopErp.slnx` entry below._
+**Verified 2026-11-05.** The first invocation with the harness default
+`ERPNET_TEST_POSTGRES_ADMIN` (`Host=localhost`) stalled before any database test completed: the
+test host held a TCP connection in `SynSent` to `::1:55432`, while the local throwaway cluster
+listens only on `127.0.0.1`. That stalled process was terminated and is not counted as a test
+result. The suite was then run once with the supported override:
+
+```
+$env:ERPNET_TEST_POSTGRES_ADMIN='Host=127.0.0.1;Port=55432;Database=postgres;Username=postgres;Pooling=false'
+dotnet test backend/PhoneShopErp.slnx --no-restore --nologo -v minimal
+```
+
+Result: **Passed — 217 passed, 0 failed, 0 skipped.**
+
+| Test project | Passed | Failed | Skipped | Duration |
+|---|---:|---:|---:|---:|
+| `PhoneShopErp.Platform.Tests` | 111 | 0 | 0 | 950 ms |
+| `PhoneShopErp.Database.Tests` | 99 | 0 | 0 | 28 s |
+| `PhoneShopErp.Architecture.Tests` | 5 | 0 | 0 | 334 ms |
+| `PhoneShopErp.Api.Integration.Tests` | 2 | 0 | 0 | 600 ms |
+
+### 4.2 Migration verification
+
+The migration set contains **23** SQL scripts. `MigrationTests` passed all 10 tests, including:
+
+* `CleanInstall_AppliesEveryScriptAndCreatesThePlatformSchema` — 23 applied in the run and 23 in
+  the journal.
+* `Rerun_AppliesNothingAndKeepsTheJournalStable` — 0 applied on re-run, 23 retained in the journal.
+* `VerifyOnly_DoesNotApplyPendingScripts` — 0 applied in verify-only mode, 23 retained.
+* `AdvisoryLock_SerialisesASecondMigrationRun` — the second runner waited for the advisory lock and
+  then applied **23** scripts. The prior hard-coded count of 21 has been corrected everywhere.
+* Checksum, role-assertion and ownership tests also passed; no script was modified after it ran.
+
+The targeted filter
+`FullyQualifiedName~MigrationTests|...CrossTenantMutation...|...AuditAndSecurityEventFields...|...EveryTenantOwnedTable...`
+also passed **14/14**. This confirms, on a clean install:
+
+* `010-platform/0035-audit-field-bounds.sql` constrains `audit_event.reason`/`detail` and
+  `security_event.actor_reference`/`detail`; boundary values are accepted and oversized values are
+  rejected with SQLSTATE `23514`.
+* `020-tenancy/0003-platform-tenant-fks.sql` creates **validated** `ON DELETE RESTRICT` foreign
+  keys from `platform.audit_event`, `platform.idempotency_record` and
+  `platform.outbox_message` to `tenancy.tenant`.
+* `EveryTenantOwnedTable_HasForcedRowLevelSecurity` passes after the migration run, proving the
+  temporary `NO FORCE ROW LEVEL SECURITY` was restored on `tenancy.tenant` and all three platform
+  tables.
+* `EveryTenantOwnedTable_IsBoundToATenantByAValidatedForeignKey` passes, so no tenant-owned table
+  is left without a validated tenant guard.
+
+No test failure was caused by the Stage 2 changes, and no Stage 2 test or migration change was
+required during this verification pass.
 
 ---
 
@@ -197,5 +246,7 @@ _Recorded after the final run; see the `dotnet test backend/PhoneShopErp.slnx` e
 * F3 — **closed as intentional**, no change.
 * F4 — **fixed**, verified (including the superseded draft migration).
 * F5 — **deferred**, with an explicit trigger condition.
-* All work is uncommitted on `Phase01-Audit`; no commits, merges, pushes or history changes were made.
-* **Phase 01 database/security foundation: not blocked.** Phase 02 was not started.
+* The Stage 2 change set is already committed as `94848c1`, which is also the commit tracked by
+  `origin/Phase01-Audit`. No commit, push, merge, branch change or history rewrite was made during
+  this verification pass; the only working-tree change is this report update.
+* **Phase 01 database/security foundation: not blocked.** Phase 02/Stage 3 was not started.
