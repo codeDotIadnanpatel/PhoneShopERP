@@ -589,11 +589,11 @@ public sealed class IdentitySessionTests
         await using var transaction = await connection.BeginTransactionAsync();
 
         foreach (var (name, settingValue) in new Dictionary<string, string>
-                 {
-                     ["app.tenant_id"] = context.TenantId.ToString(),
-                     ["app.user_id"] = context.UserId.ToString(),
-                     ["app.session_id"] = context.SessionId.ToString(),
-                 })
+        {
+            ["app.tenant_id"] = context.TenantId.ToString(),
+            ["app.user_id"] = context.UserId.ToString(),
+            ["app.session_id"] = context.SessionId.ToString(),
+        })
         {
             await using var set = new NpgsqlCommand("SELECT set_config(@name, @value, true);", connection, transaction);
             set.Parameters.AddWithValue("name", name);

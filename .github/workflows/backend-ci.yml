@@ -1,9 +1,20 @@
 name: backend-ci
 
-# Phase 00 quality baseline (P00-W04-T01).
-# Proves a clean checkout restores, formats, builds and tests with no developer
-# secrets and no external services. The API has no database dependency yet, so
-# this workflow intentionally does not start PostgreSQL.
+# Phase 01 Stage 3 quality gate.
+#
+# A clean checkout restores, formats, builds and tests the whole backend
+# solution, including the migration runner, database/RLS suites and API host
+# tests, against a throwaway PostgreSQL 16 service.
+#
+# Database credentials are disposable and job-scoped:
+#   * the service container is created per job and destroyed with the runner;
+#   * the test fixture connects as its own non-superuser roles without passwords
+#     and explicitly drops the password from every generated connection string,
+#     so the container uses passwordless `trust` authentication;
+#   * that trust rule is reachable only on the runner-local service, and no
+#     repository secret, production credential or persistent database is used;
+#   * `Host=127.0.0.1` pins clients to IPv4 because `localhost` can resolve to
+#     `::1`, which previously stalled the database suite on an IPv4-only host.
 
 on:
   push:
@@ -21,16 +32,33 @@ jobs:
   build-and-test:
     name: Build and test backend
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
     env:
       CI: 'true'
       DOTNET_NOLOGO: 'true'
       DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
       DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+      ERPNET_TEST_POSTGRES_ADMIN: 'Host=127.0.0.1;Port=5432;Database=postgres;Username=postgres;Pooling=false'
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
@@ -49,25 +77,144 @@ jobs:
           echo "No secret-like paths are tracked."
 
       - name: Set up .NET SDK
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
-          dotnet-version: '10.0.x'
+          # Honour the repository pin instead of floating the SDK. Commands run
+          # from backend/ so global.json also applies at execution time.
+          global-json-file: backend/global.json
 
       - name: Report SDK information
-        run: dotnet --info
+        working-directory: backend
+        run: |
+          dotnet --version
+          dotnet --info
 
       - name: Restore
-        run: dotnet restore backend/PhoneShopErp.slnx
+        working-directory: backend
+        run: dotnet restore PhoneShopErp.slnx
 
       - name: Verify formatting and code style
-        run: dotnet format backend/PhoneShopErp.slnx --verify-no-changes --no-restore
+        working-directory: backend
+        run: dotnet format PhoneShopErp.slnx --verify-no-changes --no-restore
 
       - name: Build
-        run: dotnet build backend/PhoneShopErp.slnx --configuration Release --no-restore
+        working-directory: backend
+        run: dotnet build PhoneShopErp.slnx --configuration Release --no-restore
+
+      - name: Wait for PostgreSQL and record server version
+        shell: bash
+        run: |
+          set -euo pipefail
+          container="${{ job.services.postgres.id }}"
+          ready=false
+          for attempt in $(seq 1 30); do
+            # The image briefly runs a socket-only server during initialisation;
+            # require both the container's TCP listener and the published host
+            # port before any database client runs.
+            if docker exec "$container" pg_isready -h 127.0.0.1 -U postgres -d postgres >/dev/null 2>&1 \
+              && timeout 2 bash -c '</dev/tcp/127.0.0.1/5432' 2>/dev/null; then
+              ready=true
+              break
+            fi
+            echo "PostgreSQL not ready (attempt ${attempt}/30)."
+            sleep 2
+          done
+          if [ "$ready" != "true" ]; then
+            echo "::error::PostgreSQL service did not become ready."
+            exit 1
+          fi
+          docker exec "$container" pg_isready -h 127.0.0.1 -U postgres -d postgres
+          server_version="$(docker exec "$container" psql -U postgres -d postgres -tAc 'SHOW server_version;')"
+          full_version="$(docker exec "$container" psql -U postgres -d postgres -tAc 'SELECT version();')"
+          echo "server_version=${server_version}"
+          echo "version=${full_version}"
+          {
+            echo '### PostgreSQL service'
+            echo
+            echo "- server_version: \`${server_version}\`"
+            echo "- full version: \`${full_version}\`"
+          } >>"${GITHUB_STEP_SUMMARY}"
+
+      - name: Prepare disposable migration database
+        shell: bash
+        run: |
+          set -euo pipefail
+          container="${{ job.services.postgres.id }}"
+          docker exec "$container" psql -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c 'DROP DATABASE IF EXISTS erp_ci_migrate WITH (FORCE);' \
+            -c 'CREATE DATABASE erp_ci_migrate;'
+          docker exec -i "$container" psql -v ON_ERROR_STOP=1 -U postgres -d erp_ci_migrate \
+            < database/bootstrap/0001-roles.sql
+
+      - name: Apply migrations through the production runner
+        working-directory: backend
+        shell: bash
+        env:
+          ERP_MIGRATION_CONNECTION: 'Host=127.0.0.1;Port=5432;Database=erp_ci_migrate;Username=erp_migrator;Pooling=false'
+          ERP_MIGRATION_OWNER: erp_owner
+          ERP_MIGRATION_SCRIPTS: ${{ github.workspace }}/database/migrations
+        run: |
+          set -euo pipefail
+          expected="$(find "$ERP_MIGRATION_SCRIPTS" -type f -name '*.sql' | wc -l | tr -d '[:space:]')"
+          echo "Expected migration scripts: ${expected}"
+
+          # Clean installation. --print-scripts records the applied script list
+          # and checksums before the runner applies them in path order.
+          first_run="$(dotnet run --project src/PhoneShopErp.Migrations \
+            --configuration Release --no-build --no-restore -- --print-scripts)"
+          echo "$first_run"
+          grep -Fq "Migration set: ${expected} script(s)" <<<"$first_run"
+          grep -Fq "${expected} script(s) applied" <<<"$first_run"
+
+          # A second run must be a no-op, proving the journal and checksums
+          # prevent double application without a second migration system.
+          rerun="$(dotnet run --project src/PhoneShopErp.Migrations \
+            --configuration Release --no-build --no-restore)"
+          echo "$rerun"
+          grep -Fq "0 script(s) applied" <<<"$rerun"
+          grep -Fq "${expected} total" <<<"$rerun"
+
+          # Verify-only must validate every applied checksum and apply nothing.
+          verify="$(dotnet run --project src/PhoneShopErp.Migrations \
+            --configuration Release --no-build --no-restore -- --verify-only)"
+          echo "$verify"
+          grep -Fq "0 script(s) applied" <<<"$verify"
+          grep -Fq "${expected} total" <<<"$verify"
+
+          {
+            echo '### Migration run'
+            echo
+            echo 'Applied script list and checksums from the --print-scripts option:'
+            echo
+            echo '```'
+            echo "$first_run"
+            echo '```'
+          } >>"${GITHUB_STEP_SUMMARY}"
+
+      - name: Assert FORCE ROW LEVEL SECURITY on every protected table
+        shell: bash
+        run: |
+          set -euo pipefail
+          container="${{ job.services.postgres.id }}"
+          counts="$(docker exec "$container" psql -v ON_ERROR_STOP=1 -U postgres -d erp_ci_migrate -tAc "
+            SELECT count(*) FILTER (WHERE c.relrowsecurity)
+                   || '|' ||
+                   count(*) FILTER (WHERE c.relrowsecurity AND NOT c.relforcerowsecurity)
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relkind = 'r'
+              AND n.nspname IN ('platform', 'tenancy', 'identity', 'saas');" | tr -d '[:space:]')"
+          rls_enabled="${counts%%|*}"
+          rls_not_forced="${counts##*|}"
+          echo "RLS-enabled tables: ${rls_enabled}"
+          echo "RLS-enabled tables without FORCE: ${rls_not_forced}"
+          test "$rls_not_forced" = "0"
+          test "$rls_enabled" -gt 0
 
       - name: Test
+        working-directory: backend
         run: >
-          dotnet test backend/PhoneShopErp.slnx
+          dotnet test PhoneShopErp.slnx
           --configuration Release
           --no-build
           --logger trx
@@ -78,13 +225,13 @@ jobs:
       - name: Assert no skipped tests
         if: always()
         shell: pwsh
-        run: ./scripts/ci/Assert-NoSkippedTests.ps1 -ResultsDirectory TestResults
+        run: ./scripts/ci/Assert-NoSkippedTests.ps1 -ResultsDirectory backend/TestResults
 
       - name: Publish test results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: backend-test-results
-          path: TestResults
+          path: backend/TestResults
           if-no-files-found: warn
           retention-days: 14
