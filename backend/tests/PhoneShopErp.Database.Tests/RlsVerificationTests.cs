@@ -757,16 +757,18 @@ public sealed class RlsVerificationTests
             null, null, null, a.SessionReference,
             "SELECT count(*) FROM identity.session;"));
 
-        // A user row may only be created or updated for the authenticated
-        // subject. The caller cannot reach the other user's row.
+        // A user row may only be created for the authenticated subject. The
+        // runtime role holds no UPDATE privilege at all (Stage 5 T-01), so an
+        // update attempt is rejected at the privilege layer before RLS runs.
         var otherUserName = await Database.ScalarAsync<string>(
             $"SELECT display_name FROM identity.user WHERE id = '{b.UserId}';",
             "postgres");
 
-        var userUpdated = await ExecuteAsAsync(
-            null, null, a.Subject, null,
-            $"UPDATE identity.user SET display_name = 'hijacked' WHERE id = '{b.UserId}';");
-        Assert.Equal(0, userUpdated);
+        await AssertPrivilegeRejectedAsync(
+            "identity.user: UPDATE",
+            () => ExecuteAsAsync(
+                null, null, a.Subject, null,
+                $"UPDATE identity.user SET display_name = 'hijacked' WHERE id = '{b.UserId}';"));
         Assert.Equal(
             otherUserName,
             await Database.ScalarAsync<string>(

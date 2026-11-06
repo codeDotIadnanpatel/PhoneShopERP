@@ -17,8 +17,8 @@ public sealed class MigrationTests
 
         var outcome = await database.MigrateAsync();
 
-        Assert.Equal(23, outcome.TotalApplied);
-        Assert.Equal(23, outcome.AppliedThisRun);
+        Assert.Equal(24, outcome.TotalApplied);
+        Assert.Equal(24, outcome.AppliedThisRun);
 
         var tables = await database.ScalarAsync<long>(
             """
@@ -46,7 +46,7 @@ public sealed class MigrationTests
         var rerun = await database.MigrateAsync();
 
         Assert.Equal(0, rerun.AppliedThisRun);
-        Assert.Equal(23, rerun.TotalApplied);
+        Assert.Equal(24, rerun.TotalApplied);
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public sealed class MigrationTests
         var verify = await database.MigrateAsync(verifyOnly: true);
 
         Assert.Equal(0, verify.AppliedThisRun);
-        Assert.Equal(23, verify.TotalApplied);
+        Assert.Equal(24, verify.TotalApplied);
     }
 
     [Fact]
@@ -181,7 +181,7 @@ public sealed class MigrationTests
         }
 
         var outcome = await run.WaitAsync(TimeSpan.FromSeconds(60));
-        Assert.Equal(23, outcome.AppliedThisRun);
+        Assert.Equal(24, outcome.AppliedThisRun);
     }
 
     [Fact]
@@ -217,6 +217,69 @@ public sealed class MigrationTests
             "postgres");
 
         Assert.Empty(rows);
+    }
+
+    [Fact]
+    public async Task UpgradeFromThePreviousMigrationSet_ClosesIdentityUpdateAndPreservesRows()
+    {
+        await using var database = await TestEnvironment.CreateDatabaseAsync();
+        var previousScripts = CopyMigrationsToTemporaryDirectory();
+
+        try
+        {
+            // Reconstruct the exact 23-script baseline that shipped before T-01.
+            File.Delete(Path.Combine(
+                previousScripts, "030-identity", "0070-user-write-boundary.sql"));
+
+            var before = await database.MigrateAsync(previousScripts);
+            Assert.Equal(23, before.TotalApplied);
+            Assert.Equal(23, before.AppliedThisRun);
+            Assert.True(
+                await database.ScalarAsync<bool>(
+                    "SELECT has_table_privilege('erp_app', 'identity.user', 'UPDATE');",
+                    "postgres"),
+                "The baseline must reproduce finding D-01 before the upgrade is tested.");
+
+            var userId = Guid.NewGuid();
+            await database.ExecuteAsync(
+                $"""
+                INSERT INTO identity.user (id, subject, display_name, status)
+                VALUES ('{userId}', 'upgrade-subject', 'Upgrade Owner', 'deactivated');
+                """,
+                "postgres");
+
+            var upgrade = await database.MigrateAsync();
+            Assert.Equal(1, upgrade.AppliedThisRun);
+            Assert.Equal(24, upgrade.TotalApplied);
+
+            Assert.False(
+                await database.ScalarAsync<bool>(
+                    "SELECT has_table_privilege('erp_app', 'identity.user', 'UPDATE');",
+                    "postgres"));
+            Assert.Equal(
+                0,
+                await database.ScalarAsync<long>(
+                    """
+                    SELECT count(*)
+                    FROM pg_policies
+                    WHERE schemaname = 'identity' AND tablename = 'user' AND cmd = 'UPDATE';
+                    """,
+                    "postgres"));
+
+            var row = (await database.QueryAsync(
+                $"SELECT status, display_name FROM identity.user WHERE id = '{userId}';",
+                "postgres"))[0];
+            Assert.Equal("deactivated", (string)row[0]!);
+            Assert.Equal("Upgrade Owner", (string)row[1]!);
+
+            var rerun = await database.MigrateAsync();
+            Assert.Equal(0, rerun.AppliedThisRun);
+            Assert.Equal(24, rerun.TotalApplied);
+        }
+        finally
+        {
+            Directory.Delete(previousScripts, recursive: true);
+        }
     }
 
     private static async Task<bool> WaitForWaitingAdvisoryLockAsync(TestDatabase database)
