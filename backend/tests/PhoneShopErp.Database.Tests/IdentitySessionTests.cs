@@ -306,44 +306,200 @@ public sealed class IdentitySessionTests
     }
 
     [Fact]
-    public async Task RevokingAnotherUsersSession_RequiresSessionRevoke()
+    public async Task RevokingASameTenantPeerSession_RequiresSessionRevoke()
     {
-        var tenant = await fixture.CreateTenantAsync("session-revoke-other");
-        var ownerPrincipal = tenant.Principal("provider-ref-owner");
-        var ownerSession = await fixture.Identity.CreateSessionAsync(
-            ownerPrincipal,
-            new CreateSessionRequest(tenant.TenantId, null, null),
-            new SessionRequestMetadata(null, null, null, null),
-            CancellationToken.None);
+        var scenario = await CreateRevocationScenarioAsync("session-revoke-same-tenant");
 
-        var other = await fixture.CreateTenantAsync("session-revoke-victim");
-        var victimSession = await fixture.Identity.CreateSessionAsync(
-            other.Principal("provider-ref-victim"),
-            new CreateSessionRequest(other.TenantId, null, null),
-            new SessionRequestMetadata(null, null, null, null),
-            CancellationToken.None);
+        // The victim session is readable through the actor's own tenant-scoped
+        // runtime path: the session read policy exposes every row in the selected
+        // tenant. A denial therefore cannot be explained by RLS filtering.
+        Assert.Equal(
+            1,
+            await ScalarInContextAsync<long>(
+                ContextFrom(scenario.PeerResolved),
+                $"SELECT count(*) FROM identity.session WHERE id = '{scenario.OwnerSession.Id}';"));
 
-        // A session in the same tenant without session.revoke must not be able to
-        // revoke a peer session. Simulate with a permission-less context.
-        var denied = TenantContext.Create(
-            tenant.TenantId,
-            tenant.UserId,
-            ownerSession.Id,
-            tenant.MembershipId,
-            permissionVersion: 1,
-            tenantWideScope: true);
+        var before = (await Database.QueryAsync(
+            $"""
+            SELECT revoked_at IS NULL, revoke_reason IS NULL, row_version
+            FROM identity.session WHERE id = '{scenario.OwnerSession.Id}';
+            """,
+            "postgres"))[0];
+        Assert.True((bool)before[0]!);
+        Assert.True((bool)before[1]!);
+        Assert.Equal(
+            0,
+            await CountSessionRevokedAuditAsync(scenario.Tenant.TenantId, scenario.OwnerSession.Id));
 
-        using (TenantContextAccessor.Begin(denied))
+        PlatformException denial;
+        using (TenantContextAccessor.Begin(ContextFrom(scenario.PeerResolved)))
         {
-            var exception = await Assert.ThrowsAsync<PlatformException>(
-                () => fixture.Identity.RevokeSessionAsync(victimSession.Id, "not allowed", CancellationToken.None));
-            Assert.Equal(ErrorCodes.Forbidden, exception.Code);
-
-            // Signing out of one's own session needs no permission at all.
-            await fixture.Identity.RevokeSessionAsync(ownerSession.Id, "sign out", CancellationToken.None);
+            denial = await Assert.ThrowsAsync<PlatformException>(
+                () => fixture.Identity.RevokeSessionAsync(
+                    scenario.OwnerSession.Id,
+                    "peer denial",
+                    CancellationToken.None));
         }
 
-        Assert.Null(await fixture.Identity.ResolveAsync(ownerPrincipal, CancellationToken.None));
+        // Forbidden (not NotFound) proves the denial comes from the authorization
+        // check, because the row is visible and would otherwise be updatable.
+        Assert.Equal(ErrorCodes.Forbidden, denial.Code);
+        Assert.Equal(403, denial.StatusCode);
+
+        var after = (await Database.QueryAsync(
+            $"""
+            SELECT revoked_at IS NULL, revoke_reason IS NULL, row_version
+            FROM identity.session WHERE id = '{scenario.OwnerSession.Id}';
+            """,
+            "postgres"))[0];
+        Assert.True((bool)after[0]!, "The denied call must not set revoked_at.");
+        Assert.True((bool)after[1]!, "The denied call must not set revoke_reason.");
+        Assert.Equal((int)before[2]!, (int)after[2]!);
+
+        // No successful revocation was recorded for the denied attempt, and no
+        // unrelated session was touched.
+        Assert.Equal(
+            0,
+            await CountSessionRevokedAuditAsync(scenario.Tenant.TenantId, scenario.OwnerSession.Id));
+
+        var peerRow = (await Database.QueryAsync(
+            $"SELECT revoked_at IS NULL FROM identity.session WHERE id = '{scenario.PeerSession.Id}';",
+            "postgres"))[0];
+        Assert.True((bool)peerRow[0]!);
+
+        // Independent verification through the real resolver: the victim session
+        // is still active and resolves to the original session id.
+        var victim = await fixture.Identity.ResolveAsync(scenario.OwnerPrincipal, CancellationToken.None);
+        Assert.NotNull(victim);
+        Assert.Equal(scenario.OwnerSession.Id, victim.SessionId);
+    }
+
+    [Fact]
+    public async Task GrantingSessionRevoke_AllowsTheSameActorToRevokeThePeerSession()
+    {
+        var scenario = await CreateRevocationScenarioAsync("session-revoke-granted");
+
+        // Baseline: the same actor, victim, tenant and code path are denied.
+        using (TenantContextAccessor.Begin(ContextFrom(scenario.PeerResolved)))
+        {
+            var denied = await Assert.ThrowsAsync<PlatformException>(
+                () => fixture.Identity.RevokeSessionAsync(
+                    scenario.OwnerSession.Id,
+                    "before grant",
+                    CancellationToken.None));
+            Assert.Equal(ErrorCodes.Forbidden, denied.Code);
+        }
+
+        // Grant the existing catalogue permission to the actor's existing role.
+        // Nothing else about the actor, victim, tenant or session changes.
+        await Database.ExecuteAsync(
+            $"""
+            INSERT INTO identity.role_permission (tenant_id, role_id, permission_code)
+            VALUES ('{scenario.Tenant.TenantId}', '{scenario.Peer.RoleId}', 'session.revoke');
+            """,
+            "postgres");
+
+        var granted = await fixture.Identity.ResolveAsync(scenario.PeerPrincipal, CancellationToken.None);
+        Assert.NotNull(granted);
+        Assert.Contains("session.revoke", granted.Permissions);
+
+        using (TenantContextAccessor.Begin(ContextFrom(granted)))
+        {
+            await fixture.Identity.RevokeSessionAsync(
+                scenario.OwnerSession.Id,
+                "peer revoke approved",
+                CancellationToken.None);
+        }
+
+        var row = (await Database.QueryAsync(
+            $"""
+            SELECT revoked_at IS NOT NULL, revoke_reason, row_version
+            FROM identity.session WHERE id = '{scenario.OwnerSession.Id}';
+            """,
+            "postgres"))[0];
+        Assert.True((bool)row[0]!);
+        Assert.Equal("peer revoke approved", (string)row[1]!);
+        Assert.True((int)row[2]! >= 2, "The revocation must pass through the row-version trigger.");
+
+        Assert.Equal(
+            1,
+            await CountSessionRevokedAuditAsync(
+                scenario.Tenant.TenantId,
+                scenario.OwnerSession.Id,
+                scenario.Peer.UserId));
+
+        Assert.Null(await fixture.Identity.ResolveAsync(scenario.OwnerPrincipal, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task SigningOutOwnSession_NeedsNoSessionRevokePermission()
+    {
+        var scenario = await CreateRevocationScenarioAsync("session-signout-own");
+
+        Assert.DoesNotContain("session.revoke", scenario.PeerResolved.Permissions);
+
+        using (TenantContextAccessor.Begin(ContextFrom(scenario.PeerResolved)))
+        {
+            await fixture.Identity.RevokeSessionAsync(
+                scenario.PeerSession.Id,
+                "sign out",
+                CancellationToken.None);
+        }
+
+        Assert.Null(await fixture.Identity.ResolveAsync(scenario.PeerPrincipal, CancellationToken.None));
+
+        // Self sign-out must not revoke anyone else's session.
+        var ownerRow = (await Database.QueryAsync(
+            $"SELECT revoked_at IS NULL FROM identity.session WHERE id = '{scenario.OwnerSession.Id}';",
+            "postgres"))[0];
+        Assert.True((bool)ownerRow[0]!);
+    }
+
+    [Fact]
+    public async Task RevokingACrossTenantSession_IsNotFoundWithoutDisclosure()
+    {
+        var first = await fixture.CreateTenantAsync("session-revoke-cross-first");
+        var second = await fixture.CreateTenantAsync("session-revoke-cross-second");
+        var firstPrincipal = first.Principal("provider-ref-cross-first");
+        var secondPrincipal = second.Principal("provider-ref-cross-second");
+
+        await fixture.Identity.CreateSessionAsync(
+            firstPrincipal,
+            new CreateSessionRequest(first.TenantId, null, null),
+            new SessionRequestMetadata(null, null, null, null),
+            CancellationToken.None);
+        var foreignSession = await fixture.Identity.CreateSessionAsync(
+            secondPrincipal,
+            new CreateSessionRequest(second.TenantId, null, null),
+            new SessionRequestMetadata(null, null, null, null),
+            CancellationToken.None);
+
+        var resolved = await fixture.Identity.ResolveAsync(firstPrincipal, CancellationToken.None);
+        Assert.NotNull(resolved);
+
+        // The owner role holds session.revoke, so the 404 below is caused by
+        // tenant scoping, not by a missing permission.
+        Assert.Contains("session.revoke", resolved.Permissions);
+
+        using (TenantContextAccessor.Begin(ContextFrom(resolved)))
+        {
+            var exception = await Assert.ThrowsAsync<PlatformException>(
+                () => fixture.Identity.RevokeSessionAsync(
+                    foreignSession.Id,
+                    "cross tenant",
+                    CancellationToken.None));
+            Assert.Equal(ErrorCodes.NotFound, exception.Code);
+            Assert.Equal(404, exception.StatusCode);
+        }
+
+        var foreignRow = (await Database.QueryAsync(
+            $"SELECT revoked_at IS NULL FROM identity.session WHERE id = '{foreignSession.Id}';",
+            "postgres"))[0];
+        Assert.True((bool)foreignRow[0]!);
+        Assert.NotNull(await fixture.Identity.ResolveAsync(secondPrincipal, CancellationToken.None));
+
+        // The caller's own tenant remains unaffected.
+        Assert.NotNull(await fixture.Identity.ResolveAsync(firstPrincipal, CancellationToken.None));
     }
 
     [Fact]
@@ -567,6 +723,131 @@ public sealed class IdentitySessionTests
         // derived, and the raw session row is gone from the valid set.
         Assert.Null(await fixture.Identity.ResolveAsync(principal, CancellationToken.None));
     }
+
+    /// <summary>
+    /// One tenant with two members: the onboarded owner (victim) and a second
+    /// membership whose role holds no <c>session.revoke</c> (actor). Both sessions
+    /// are created through the real application path, and the actor's permission
+    /// set is resolved from the database, not constructed in the test.
+    /// </summary>
+    private async Task<RevocationScenario> CreateRevocationScenarioAsync(string slug)
+    {
+        var tenant = await fixture.CreateTenantAsync(slug);
+        var ownerPrincipal = tenant.Principal("provider-ref-" + slug + "-owner");
+        var ownerSession = await fixture.Identity.CreateSessionAsync(
+            ownerPrincipal,
+            new CreateSessionRequest(tenant.TenantId, null, null),
+            new SessionRequestMetadata(null, null, null, null),
+            CancellationToken.None);
+
+        var peer = await SeedPeerMembershipAsync(
+            tenant.TenantId,
+            "subject-" + slug + "-peer",
+            "t02_limited",
+            "tenant.view");
+
+        var peerPrincipal = peer.Principal("provider-ref-" + slug + "-peer");
+        var peerSession = await fixture.Identity.CreateSessionAsync(
+            peerPrincipal,
+            new CreateSessionRequest(tenant.TenantId, null, null),
+            new SessionRequestMetadata(null, null, null, null),
+            CancellationToken.None);
+
+        var peerResolved = await fixture.Identity.ResolveAsync(peerPrincipal, CancellationToken.None);
+        Assert.NotNull(peerResolved);
+
+        return new RevocationScenario(
+            tenant,
+            ownerPrincipal,
+            ownerSession,
+            peer,
+            peerPrincipal,
+            peerSession,
+            peerResolved);
+    }
+
+    /// <summary>
+    /// Seeds a second membership in an existing tenant. This is test setup only:
+    /// the actor is then resolved and authenticated through the real adapters, so
+    /// the permission check under test is never bypassed.
+    /// </summary>
+    private async Task<SeededPeer> SeedPeerMembershipAsync(
+        Guid tenantId,
+        string subject,
+        string roleCode,
+        params string[] permissionCodes)
+    {
+        var userId = await fixture.Identity.EnsureUserAsync(
+            new AuthenticatedPrincipal(subject, null, "Peer " + subject, subject + "@example.test"),
+            CancellationToken.None);
+
+        var membershipId = fixture.Ids.NewId();
+        var roleId = fixture.Ids.NewId();
+
+        await Database.ExecuteAsync(
+            $"""
+            INSERT INTO identity.membership (id, tenant_id, user_id, status)
+            VALUES ('{membershipId}', '{tenantId}', '{userId}', 'active');
+
+            INSERT INTO identity.role (id, tenant_id, code, display_name)
+            VALUES ('{roleId}', '{tenantId}', '{roleCode}', 'T-02 limited peer');
+
+            INSERT INTO identity.role_assignment (
+                id, tenant_id, membership_id, role_id, scope_type, scope_id)
+            VALUES (
+                '{fixture.Ids.NewId()}', '{tenantId}', '{membershipId}', '{roleId}',
+                'tenant', NULL);
+            """,
+            "postgres");
+
+        foreach (var permissionCode in permissionCodes)
+        {
+            await Database.ExecuteAsync(
+                $"""
+                INSERT INTO identity.role_permission (tenant_id, role_id, permission_code)
+                VALUES ('{tenantId}', '{roleId}', '{permissionCode}');
+                """,
+                "postgres");
+        }
+
+        return new SeededPeer(userId, membershipId, roleId, subject);
+    }
+
+    private async Task<long> CountSessionRevokedAuditAsync(
+        Guid tenantId,
+        Guid sessionId,
+        Guid? actorUserId = null)
+    {
+        var actorFilter = actorUserId is { } actor
+            ? $" AND actor_user_id = '{actor}'"
+            : string.Empty;
+
+        return await Database.ScalarAsync<long>(
+            $"""
+            SELECT count(*)
+            FROM platform.audit_event
+            WHERE tenant_id = '{tenantId}'
+              AND action = 'session.revoked'
+              AND outcome = 'success'
+              AND target_id = '{sessionId}'{actorFilter};
+            """,
+            "postgres");
+    }
+
+    private sealed record SeededPeer(Guid UserId, Guid MembershipId, Guid RoleId, string Subject)
+    {
+        public AuthenticatedPrincipal Principal(string sessionReference) =>
+            new(Subject, sessionReference, "Peer " + Subject, Subject + "@example.test");
+    }
+
+    private sealed record RevocationScenario(
+        SeededTenant Tenant,
+        AuthenticatedPrincipal OwnerPrincipal,
+        SessionSummary OwnerSession,
+        SeededPeer Peer,
+        AuthenticatedPrincipal PeerPrincipal,
+        SessionSummary PeerSession,
+        ResolvedSession PeerResolved);
 
     private static TenantContext ContextFrom(ResolvedSession resolved) =>
         TenantContext.Create(
