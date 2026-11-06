@@ -33,6 +33,25 @@ This is a planning baseline. Planned test names are not evidence that tests exis
 | Full record | `docs/13-audit-remediation/PHASE_01_STAGE_5_T01_COMPLETION_REPORT.md`. |
 | Reviewer / date | Pending independent review; 2026-11-06. |
 
+## Stage 5 T-02 evidence — same-tenant session revocation authorization (D-03)
+
+**Status:** Closed by test correction. Production authorization and RLS behaviour were already correct; only the evidence was wrong. No source code changed.
+
+| Evidence field | Value |
+|---|---|
+| Finding | Stage 4 D-03: the session-revocation authorization test used a victim in a different tenant, so the denial could have come from tenant scoping or RLS filtering rather than the `session.revoke` permission check. |
+| Implementation commit | `45daa2a23a42992a581156379c7bcb3f1847598f` |
+| Corrected tests | `backend/tests/PhoneShopErp.Database.Tests/IdentitySessionTests.cs` — `RevokingASameTenantPeerSession_RequiresSessionRevoke`, `GrantingSessionRevoke_AllowsTheSameActorToRevokeThePeerSession`, `SigningOutOwnSession_NeedsNoSessionRevokePermission`, `RevokingACrossTenantSession_IsNotFoundWithoutDisclosure`. |
+| Permission exercised | Existing catalogue permission `session.revoke` (tenant scope, high risk, protected) resolved from `identity.role_permission` by the real `ResolveAsync` path. No new permission or policy. |
+| Denial proof | Same-tenant victim visible under the actor's tenant context (`SELECT count(*) = 1` as `erp_app`); denial is `Forbidden`/403, not `NotFound`; removing `PermissionChecker.Demand` makes the test fail; granting the permission to the same role makes the same call succeed. |
+| Side-effect proof | Victim `revoked_at`/`revoke_reason` remain null, `row_version` unchanged, no `session.revoked` success audit event, victim session still resolves; own sign-out needs no permission. |
+| Cross-tenant regression | Owner-role caller with `session.revoke` receives `NotFound`/404 for a foreign session, which stays active. Existing RLS cross-tenant session tests unchanged and green. |
+| Regression evidence | 230 passed, 0 failed, 0 skipped (Platform 111, Database 112, Architecture 5, API 2); skip guard verified 230 executed TRX results; focused `IdentitySessionTests` 23 passed. |
+| Relevant slices | FS-002 (server-side identity resolution) and FS-003 (RLS defense in depth). |
+| Known limitations | No HTTP endpoint wiring (C-02); second membership/role seeded administratively for setup only; denied attempts are not audited today; production role administration must bump `permission_version` when implemented. |
+| Full record | `docs/13-audit-remediation/PHASE_01_STAGE_5_T02_COMPLETION_REPORT.md`. |
+| Reviewer / date | Pending independent review; 2026-11-06. |
+
 ## Evidence fields to add during implementation
 
 For every row, record:
