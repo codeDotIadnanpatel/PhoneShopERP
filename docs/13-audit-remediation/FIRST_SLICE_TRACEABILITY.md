@@ -15,6 +15,24 @@ This is a planning baseline. Planned test names are not evidence that tests exis
 | FS-007 | Record auditable stock movements and receiving | INV-001, INV-002, PUR-001; D-005, D-006 | Receiving/movement commands; immutable movement records and balance projection | Receive, correct/reverse and approve variance permissions | Duplicate command, concurrent receipt, negative quantity, balance-vs-ledger reconciliation | Not implemented (Phase 02) |
 | FS-008 | Establish contract and migration quality gates | ENG-004; D-003 | OpenAPI schemas, migration scripts and CI validation | Contract authorization metadata reviewed | OpenAPI lint/validation, clean migration, upgrade path and contract tests | **Migration pipeline + checksums + advisory lock implemented; CI verification pending** |
 
+## Stage 5 T-01 evidence — identity write boundary (D-01)
+
+**Status:** Closed at the database layer. No API profile or lifecycle endpoint exists, so no end-to-end HTTP evidence is claimed.
+
+| Evidence field | Value |
+|---|---|
+| Finding | Stage 4 D-01: `erp_app` held table-wide `UPDATE` on `identity.user` and could change its own `status`, `subject`, `email` or `display_name`. |
+| Implementation commit | `d693affb37a598b4b1dc5a172a47d543aa0f3bd8` |
+| Migration ID | `030-identity/0070-user-write-boundary.sql` (schema version 24) |
+| Permission change | `REVOKE UPDATE ON identity.user FROM erp_app`; `user_self_update` policy dropped. `SELECT` and `INSERT` retained. |
+| Boundary tests | `backend/tests/PhoneShopErp.Database.Tests/IdentityUserWriteBoundaryTests.cs` — 9 tests: `GrantAndPolicySurface_IsLeastPrivilege`, `RuntimeRole_CannotChangeItsOwnStatus`, `DeactivatedUser_CannotReactivateThroughSqlOrProvisioning`, `RuntimeRole_CannotChangeItsOwnProviderSubject`, `RuntimeRole_CannotUpdateAnotherUsersRecord`, `RuntimeRole_HasNoApprovedProfileUpdatePath`, `Provisioning_KeepsTheDocumentedProviderSnapshot`, `RowVersionAndUpdatedAt_StillBumpForAuthorizedUpdates`, `DeniedIdentityWrites_DoNotChangeTheAuditLedger`. |
+| Migration tests | `MigrationTests.UpgradeFromThePreviousMigrationSet_ClosesIdentityUpdateAndPreservesRows`; clean install, rerun and verify-only updated to 24 scripts. |
+| Regression evidence | 227 passed, 0 failed, 0 skipped (Platform 111, Database 109, Architecture 5, API 2); skip guard verified 227 executed TRX results. |
+| Relevant slices | FS-002 (server-side identity resolution) and FS-003 (RLS defense in depth). |
+| Known limitations | R-04 profile drift remains open; no runtime deactivation/reactivation path exists and none was invented; no audit trigger on `identity.user`; no HTTP identity-write endpoint to test. |
+| Full record | `docs/13-audit-remediation/PHASE_01_STAGE_5_T01_COMPLETION_REPORT.md`. |
+| Reviewer / date | Pending independent review; 2026-11-06. |
+
 ## Evidence fields to add during implementation
 
 For every row, record:
