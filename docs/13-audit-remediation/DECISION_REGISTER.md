@@ -42,7 +42,7 @@ These are internal architecture approvals, not an external security audit.
 - [`decision-papers/D-003-physical-database-conventions.md`](decision-papers/D-003-physical-database-conventions.md) — revision 2
 - [`decision-papers/README.md`](decision-papers/README.md) — status, approval order and rules
 - [`PHASE_01_DECISION_WORKSHOP.md`](PHASE_01_DECISION_WORKSHOP.md) — DP-01 … DP-15 resolutions, approval sheet, post-approval sequence
-- [`../10-development-execution/PHASE_01_IMPLEMENTATION_BACKLOG.md`](../10-development-execution/PHASE_01_IMPLEMENTATION_BACKLOG.md) — implementation backlog (blocked until D-001/D-002/D-003 are approved)
+- [`../10-development-execution/PHASE_01_IMPLEMENTATION_BACKLOG.md`](../10-development-execution/PHASE_01_IMPLEMENTATION_BACKLOG.md) — implementation backlog (D-001, D-002 and D-003 were approved 2026-11-03; remaining items still depend on their listed decisions)
 
 ## Decision record template
 

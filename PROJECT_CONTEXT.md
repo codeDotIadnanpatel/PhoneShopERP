@@ -4,7 +4,7 @@
 **Document role:** The single-file starting point for any AI assistant, developer, reviewer or new team member.
 **Package version:** v1.5
 **Project/product name:** Not selected; use a configurable placeholder.
-**Current project state:** Specification and engineering-planning stage. The repository describes the intended product and proposed engineering baseline; it is not evidence that the software has been implemented.
+**Current project state:** Phase 00 is complete and Phase 01 (platform foundation) is in progress. The repository contains a .NET 10 backend solution with a PostgreSQL 16 schema, forward-only migrations, RLS, database roles and grants, identity/session adapters, audit primitives and automated tests. The HTTP API is a foundation host exposing only `/health/live`: authentication, tenant resolution, permission enforcement, business endpoints and the product clients (WPF, Flutter, Next.js) are not implemented. Production readiness is NO-GO.
 **Authority:** This file is the project-wide orientation and navigation document. Detailed requirements, accepted decisions, phase criteria and design contracts remain authoritative in their respective source files.
 
 ---
@@ -228,9 +228,9 @@ The engineering design pack (`docs/11-engineering-design/`) contains proposed ba
 
 # 7. Where the project stands right now
 
-At the time this context file was created, the repository is a specification and engineering-planning package. The package contains product requirements, architecture decisions, phase plans, engineering design contracts and tracking documents. It does not, by itself, prove that the ERP application has been implemented.
+At the time this context file was created, the repository was a specification and engineering-planning package. It now also contains the Phase 01 platform foundation described above. The planning documents still do not, by themselves, prove that an end-to-end ERP application has been implemented.
 
-Treat `IMPLEMENTATION_STATUS.md` and `docs/10-development-execution/PHASE_TRACKER.md` as the live status sources. Re-read them at the beginning of every task because implementation status can change. The baseline status register states that phase implementation is **Not started** unless separately evidenced there.
+Treat `IMPLEMENTATION_STATUS.md` and `docs/10-development-execution/PHASE_TRACKER.md` as the live status sources. Re-read them at the beginning of every task because implementation status can change. Phase 00 is recorded as complete and Phase 01 as in progress; do not infer further progress without evidence in those registers.
 
 Use the repository's status vocabulary accurately:
 - **Specified:** behaviour is documented.
@@ -264,8 +264,10 @@ This is a dependency-oriented plan, not a calendar promise. Execute sequentially
 
 **Important:** Accounting must be designed from the start even though its main implementation phase is Phase 05. Do not build stock-affecting sales and purchasing first and retrofit accounting later.
 
-The immediate first step for a new implementation effort is Phase 00, not an arbitrary feature screen. Read:
-- `docs/10-development-execution/PHASE_00_PROJECT_PREPARATION.md`
+Phase 00 is complete. The current implementation phase is Phase 01 (platform foundation); start from the current phase documents, not an arbitrary feature screen. Read:
+- `docs/10-development-execution/PHASE_01_PLATFORM_FOUNDATION.md`
+- `docs/10-development-execution/PHASE_01_IMPLEMENTATION_BACKLOG.md`
+- `docs/13-audit-remediation/PHASE_01_STAGE_4_REMEDIATION_PLAN.md`
 - `docs/11-engineering-design/ARCHITECTURE_GATES.md`
 - `docs/11-engineering-design/README.md`
 - `docs/10-development-execution/DEPENDENCY_MAP.md`
@@ -390,4 +392,4 @@ Start every new task by reading this file and the mandatory files listed above. 
 
 
 ## v1.5 audit remediation
-The v1.5 audit remediation pack in `docs/13-audit-remediation/` records the v1.4 specification audit, Phase 00 decision-control process and first-slice traceability requirements. Read its README during Phase 00. It does not override accepted decisions or turn illustrative designs into approved contracts.
+The v1.5 audit remediation pack in `docs/13-audit-remediation/` records the v1.4 specification audit, the Phase 00 decision-control process, the Phase 01 Stage 5 security/API remediation and first-slice traceability. Read its README and `PHASE_01_STAGE_4_REMEDIATION_PLAN.md` before Phase 01 remediation work. It does not override accepted decisions or turn illustrative designs into approved contracts.

@@ -37,7 +37,7 @@ For every requirement, add linked test IDs, implementation PRs, known limitation
 
 ## Engineering and quality traceability (v1.2)
 
-These IDs extend the baseline; they do not replace existing product requirement IDs. Task IDs below are planned identifiers to be instantiated in phase trackers/issues. Test IDs are naming conventions until test projects are created.
+These IDs extend the baseline; they do not replace existing product requirement IDs. Task IDs below are planned identifiers to be instantiated in phase trackers/issues. Test IDs are naming conventions until they are instantiated as executable tests; the Phase 00 IDs below now exist as tests.
 
 | ID | Requirement | Design reference | Planned phase / task family | Minimum verification |
 |---|---|---|---|---|
@@ -57,7 +57,10 @@ These IDs extend the baseline; they do not replace existing product requirement 
 ## Phase 00 scaffolding traceability (P00-W03-T01, P00-W04-T01)
 
 These test IDs exist as executable tests in the repository, not planned names. They verify
-engineering scaffolding only; no product requirement is claimed as implemented.
+engineering scaffolding only; no product requirement is claimed as implemented. The larger Phase 01
+platform-foundation suite is recorded in
+`docs/13-audit-remediation/FIRST_SLICE_TRACEABILITY.md` under FS-001–FS-008 and the T-01–T-05
+evidence.
 
 | Test ID | Verifies | Test location |
 |---|---|---|
@@ -70,8 +73,9 @@ engineering scaffolding only; no product requirement is claimed as implemented.
 | `API-HOST-002` | Unknown route returns RFC 9457 problem details | same |
 
 Related task IDs: `P00-W03-T01` (solution skeleton), `P00-W04-T01` (developer environment and
-CI baseline). Contract, schema, permission and migration evidence (FS-001 … FS-008) remains
-`Not implemented` in `docs/13-audit-remediation/FIRST_SLICE_TRACEABILITY.md`.
+CI baseline). Phase 01 database, RLS, identity, audit and migration evidence (FS-001 … FS-008) is
+tracked in `docs/13-audit-remediation/FIRST_SLICE_TRACEABILITY.md`; product requirements remain
+unimplemented until an end-to-end module slice exists.
 
 ## Required per-requirement implementation record
 

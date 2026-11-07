@@ -26,6 +26,9 @@ This repository documentation is the product and engineering source of truth. Th
 ## Specification versions
 
 - **v1.2** adds the implementation-oriented engineering design pack in [`docs/11-engineering-design/`](docs/11-engineering-design/README.md). It supplements the v1.1 execution plan and preserves unresolved decisions as explicit gates.
+- **v1.3** adds the root project briefing and AI-agent entry point, [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md).
+- **v1.4** adds the engineering-readiness framework in [`docs/12-engineering-readiness/`](docs/12-engineering-readiness/README.md).
+- **v1.5** adds the specification audit remediation pack in [`docs/13-audit-remediation/`](docs/13-audit-remediation/README.md) and refreshes package/index metadata.
 - See [`VERSION_HISTORY.md`](VERSION_HISTORY.md) for the change summary.
 
 ## Start here
@@ -71,4 +74,4 @@ See `IMPLEMENTATION_STATUS.md` for the live status register.
 ## v1.5 — Audit remediation
 v1.5 corrects the documentation index and package-version metadata, replaces generic Phase 00 task checklists with task-specific deliverables, and adds an audit remediation plan, decision register and first-slice traceability baseline. It does not claim application implementation or approve unresolved business, accounting, tax, security or infrastructure policies.
 
-**Current readiness:** Begin Phase 00. Do not treat conceptual data models, illustrative API examples or accounting scenarios as production-approved contracts.
+**Current readiness:** Phase 00 is complete and Phase 01 (platform foundation) is in progress. The .NET backend contains the PostgreSQL schema, migrations, RLS, roles and identity/tenancy adapters with automated tests, but the HTTP API exposes only `/health/live`: authentication/tenant pipeline, business endpoints, WPF/Flutter/Next.js applications and production operations are not implemented. Production readiness is **NO-GO**. Do not treat conceptual data models, illustrative API examples or accounting scenarios as production-approved contracts.

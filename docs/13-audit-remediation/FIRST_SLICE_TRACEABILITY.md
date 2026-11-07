@@ -6,14 +6,14 @@ This is a planning baseline. Planned test names are not evidence that tests exis
 
 | Slice ID | Requirement / outcome | Design and decision dependencies | Planned contract / data | Required permission checks | Minimum automated verification | Evidence status |
 |---|---|---|---|---|---|---|
-| FS-001 | Establish tenant, legal entity and branch context | TEN-001; D-001, D-002, D-003 | Tenant/context API; tenant, legal entity, branch and membership schema | User can access only assigned tenant/legal entity/branch scope | Cross-tenant and cross-branch read/write denial; invalid context rejection | **Schema implemented; API pending** |
-| FS-002 | Authenticate user and resolve permissions server-side | IAM-001; D-002, D-011 | Auth/session contract; user, role, permission and membership records | Deny by default; explicit operation and scope checks | Expired/revoked session, missing permission and privilege escalation tests | **Schema implemented; adapter pending** |
-| FS-003 | Enforce RLS for tenant-owned records | SEC-001; D-001, D-003 | RLS policies and transaction-scoped context | Application authorization plus database RLS | Direct SQL/API/job/export cross-tenant negative tests; pooled connection context leakage test | **RLS policies + triggers in migrations; negative tests pending** |
+| FS-001 | Establish tenant, legal entity and branch context | TEN-001; D-001, D-002, D-003 | Tenant/context API; tenant, legal entity, branch and membership schema | User can access only assigned tenant/legal entity/branch scope | Cross-tenant and cross-branch read/write denial; invalid context rejection | **Schema and tenant-context adapters implemented and tested; HTTP tenant/context API pending (C-02)** |
+| FS-002 | Authenticate user and resolve permissions server-side | IAM-001; D-002, D-011 | Auth/session contract; user, role, permission and membership records | Deny by default; explicit operation and scope checks | Expired/revoked session, missing permission and privilege escalation tests | **Schema and identity/session adapters implemented and tested; HTTP authentication pipeline pending (C-02)** |
+| FS-003 | Enforce RLS for tenant-owned records | SEC-001; D-001, D-003 | RLS policies and transaction-scoped context | Application authorization plus database RLS | Direct SQL/API/job/export cross-tenant negative tests; pooled connection context leakage test | **RLS policies, triggers, role/grant checks and negative tests implemented and passing; API/job/export surface pending** |
 | FS-004 | Create product and variant catalogue records | CAT-001; D-003 | Product/variant API and schema; unique SKU/barcode scope decision | Catalogue read/write permissions; branch scope where applicable | Required-field validation, uniqueness, tenant isolation and audit tests | Not implemented (Phase 02) |
 | FS-005 | Register serialized devices with normalized identifiers | INV-001; D-003, D-004 | Device registration API; device and identifier records | Receive/register/override permissions | IMEI normalization, duplicate IMEI/serial, dual-SIM and concurrent registration tests | Not implemented (Phase 02) |
 | FS-006 | Establish bulk stock items and stock locations | INV-002; D-003, D-005 | Bulk item/location API and schema | Inventory setup permissions; tenant/branch scope | Tenant isolation, invalid location and inactive item tests | Not implemented (Phase 02) |
 | FS-007 | Record auditable stock movements and receiving | INV-001, INV-002, PUR-001; D-005, D-006 | Receiving/movement commands; immutable movement records and balance projection | Receive, correct/reverse and approve variance permissions | Duplicate command, concurrent receipt, negative quantity, balance-vs-ledger reconciliation | Not implemented (Phase 02) |
-| FS-008 | Establish contract and migration quality gates | ENG-004; D-003 | OpenAPI schemas, migration scripts and CI validation | Contract authorization metadata reviewed | OpenAPI lint/validation, clean migration, upgrade path and contract tests | **Migration pipeline + checksums + advisory lock implemented; CI verification pending** |
+| FS-008 | Establish contract and migration quality gates | ENG-004; D-003 | OpenAPI schemas, migration scripts and CI validation | Contract authorization metadata reviewed | OpenAPI lint/validation, clean migration, upgrade path and contract tests | **Migration pipeline, checksums, advisory lock, upgrade-from-prior-version tests and CI verification implemented (runs `42045115605`, `42374399689`); OpenAPI/contract gates pending** |
 
 ## Stage 5 T-01 evidence — identity write boundary (D-01)
 
@@ -92,6 +92,22 @@ This is a planning baseline. Planned test names are not evidence that tests exis
 | Relevant slices | FS-002 (server-side authorization evidence) and FS-003 (RLS/defence-in-depth audit handling). |
 | Known limitations | Name-based redaction cannot detect a secret pasted into a benign free-text/string value; `Reason` and `ActorReference` are not content scanned; no production `AppendSecurityEventAsync` caller yet; R-01 remains an accepted Stage 4 risk. |
 | Full record | `docs/13-audit-remediation/PHASE_01_STAGE_5_T04_COMPLETION_REPORT.md`. |
+| Reviewer / date | Pending independent review; 2026-11-07. |
+
+## Stage 5 T-05 evidence — documentation truth-up (D-06)
+
+**Status:** Complete. Factual documentation corrections only. No production code, test, migration, schema, grant, RLS policy or decision outcome changed.
+
+| Evidence field | Value |
+|---|---|
+| Baseline commit | `4912ad95baacb8650f9230237f9e97fb64523de3` (T-04 documentation) |
+| Finding | Stage 4 D-06: status documents contradicted the repository, the test evidence and each other (for example "no schema", "no module projects", open decisions recorded as approved, a nonexistent migration rollback test and pending tests/CI that had already passed). |
+| Corrected documents | `README.md`, `PROJECT_CONTEXT.md`, `IMPLEMENTATION_STATUS.md`, `REQUIREMENTS_TRACEABILITY.md`, `backend/README.md`, `backend/src/PhoneShopErp.Api/Program.cs` (comment only), `docs/10-development-execution/DEVELOPER_SETUP.md`, `docs/13-audit-remediation/README.md`, `docs/13-audit-remediation/DECISION_REGISTER.md` (link text), `docs/13-audit-remediation/PHASE_01_STAGE_3_CI_REVIEW.md` (dated append-only update), this file. |
+| Evidence used | Source and migrations at HEAD; actual project/solution layout; T-01–T-04 completion reports; 258-test T-04 suite result; Stage 3 CI run `42045115605` and Stage 5 CI run `42374399689`. |
+| Decision status preserved | D-001, D-002 and D-003 remain **Approved 2026-11-03**; D-004–D-016 remain **Open**; R-01 remains an accepted unresolved risk. |
+| Limitations preserved | No HTTP authentication/tenant pipeline (C-02); name-based audit redaction limitation; `Reason`/`ActorReference` not content-scanned; `erp_platform_admin` has `BYPASSRLS`; production readiness remains NO-GO. |
+| Verification | Referenced commits and CI conclusions checked with GitHub CLI; affected local Markdown links checked; `git diff --check` clean; diff contains documentation and one comment block only. |
+| Full record | `docs/13-audit-remediation/PHASE_01_STAGE_5_T05_COMPLETION_REPORT.md`. |
 | Reviewer / date | Pending independent review; 2026-11-07. |
 
 ## Evidence fields to add during implementation

@@ -1,7 +1,9 @@
 # Developer Setup — .NET Backend Baseline
 
 **Status:** Valid Phase 00 deliverable (`P00-W03-T01` repository/solution skeleton,
-`P00-W04-T01` developer environment and CI baseline) for the backend only.
+`P00-W04-T01` developer environment and CI baseline) for the backend only. Updated
+2026-11-07 for the Phase 01 platform-foundation state; the test counts and API-wiring
+statements refer to the last verified T-04 baseline.
 **Scope limitation:** This guide covers the .NET backend scaffolding. The WPF POS, Flutter
 staff app and Next.js owner portal are intentionally **not** scaffolded yet; their ownership
 boundaries and phase entry conditions are not agreed.
@@ -59,9 +61,10 @@ dotnet test   PhoneShopErp.slnx --configuration Release --no-build
 `CI=true` makes `ContinuousIntegrationBuild` true (see `backend/Directory.Build.props`). It is
 optional for local work but reproduces the CI build property.
 
-Expected current result: **build succeeds with 0 warnings, 217 tests pass** (111 platform,
-99 database, 5 architecture, 2 API host). Counts will grow; the important part is
-`Failed: 0, Skipped: 0`.
+Expected current result: **build succeeds with 0 warnings, 258 tests pass** (Platform 128,
+Database 123, Architecture 5, API host 2) as last verified in the T-04 report on 2026-11-07.
+Counts will grow; the important part is `Failed: 0, Skipped: 0`. Treat the breakdown as
+historical evidence rather than a permanent guarantee.
 
 Run the API from the same directory:
 
@@ -71,8 +74,9 @@ dotnet run --project src/PhoneShopErp.Api
 ```
 
 `/health/live` is a liveness probe only. It must never touch a database, cache or external
-network service. The API currently exposes no business endpoint, because no module contract or
-tenant/identity decision is approved yet.
+network service. The API currently exposes no business endpoint: D-001 to D-003 are approved and
+the database/identity/tenant foundation exists below HTTP, but the authentication and
+tenant-context pipeline is not composed yet (C-02; remediation task T-06).
 
 ## 3. Local services
 
@@ -279,18 +283,21 @@ file can enforce. Recommended settings and the review evidence are recorded in
 | Docker reports the port is already allocated | Another process or container uses `55432`. Stop it or choose another loopback host port and update `ERPNET_TEST_POSTGRES_ADMIN`. |
 | `docker compose up` fails with `Set POSTGRES_PASSWORD` | This is the optional application database only. Create `.env` from `.env.example` and set a value; the tests do not use this service. |
 
-## 9. What this baseline deliberately does not include
+## 9. What is still not included
 
-> This section describes the Phase 00 scaffolding baseline. Phase 01 added the database
+> This section originally described the Phase 00 scaffolding baseline. Phase 01 added the database
 > foundation, migration runner, RLS, identity/session schema and the tests covered by §5 and §7;
 > see [`../13-audit-remediation/PHASE_01_STAGE_2_SECURITY_REVIEW.md`](../13-audit-remediation/PHASE_01_STAGE_2_SECURITY_REVIEW.md)
 > and [`../13-audit-remediation/PHASE_01_STAGE_3_CI_REVIEW.md`](../13-audit-remediation/PHASE_01_STAGE_3_CI_REVIEW.md).
+> The following capabilities remain absent.
 
-- Database schema, EF Core context, migrations, RLS policy (blocked by `D-001`, `D-003`).
-- Authentication, sessions, MFA, service identities (blocked by `D-002`).
-- Any module project (requires its phase and gate approval).
-- API contracts/OpenAPI (`P01-W02`).
+- HTTP authentication, session resolution, tenant-context establishment, permission enforcement
+  and protected endpoints (C-02; remediation task T-06).
+- Business module endpoints and product workflows; the schema and adapters are foundation work,
+  not a usable ERP.
+- API contracts/OpenAPI (P01-W02 onward).
 - WPF, Flutter and Next.js project skeletons (ownership boundaries not yet agreed).
+- Production observability, deployment topology, backup/restore and pilot readiness.
 
 See [`../13-audit-remediation/DECISION_REGISTER.md`](../13-audit-remediation/DECISION_REGISTER.md)
 and [`../11-engineering-design/ARCHITECTURE_GATES.md`](../11-engineering-design/ARCHITECTURE_GATES.md).

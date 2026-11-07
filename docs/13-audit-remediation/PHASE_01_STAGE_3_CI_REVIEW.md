@@ -292,3 +292,21 @@ syntactically valid, the full solution passes locally against a real PostgreSQL 
 migration runner is exercised through its production CLI, and no security control was weakened.
 The remaining step is an authorised commit/push followed by a first green GitHub Actions run and
 configuration of the branch protection rules above.
+
+---
+
+## 16. Status update — 2026-11-07 (append-only correction)
+
+The statements above describe the review at `de859e3` while the workflow changes were still
+uncommitted. They are preserved as historical evidence. Remote execution is now verified:
+
+| Evidence | Value |
+|---|---|
+| Stage 3 CI run | [`42045115605`](https://github.com/codeDotIadnanpatel/PhoneShopERP/actions/runs/42045115605) — `success`, 2026-11-05, commit `5393ea9d033e9f7e0b3d56bc95ef7cec1c775474` |
+| Latest Stage 5 run at the T-05 baseline | [`42374399689`](https://github.com/codeDotIadnanpatel/PhoneShopERP/actions/runs/42374399689) — `success`, 2026-11-07, commit `4912ad95baacb8650f9230237f9e97fb64523de3` |
+| Workflow | `backend-ci`, event `push` |
+
+Section 13 item 1 ("Remote execution unverified") and the "remote completion pending" statement in
+section 15 are superseded by this update. Branch protection remains a repository-settings decision
+and is not claimed as configured here. `docs/INDEX.md` also remains stale; regenerating it is still
+deferred to a dedicated documentation task.

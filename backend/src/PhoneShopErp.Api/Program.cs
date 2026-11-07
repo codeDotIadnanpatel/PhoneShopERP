@@ -5,12 +5,13 @@ var builder = WebApplication.CreateBuilder(args);
 // ---------------------------------------------------------------------------
 // Composition root only.
 //
-// No tenant context, identity provider, database context, module, background
-// worker or business endpoint is registered here. Those depend on decisions
-// that are still open in docs/13-audit-remediation/DECISION_REGISTER.md
-// (D-001 tenant context/RLS, D-002 identity/session, D-003 database conventions)
-// and on architecture gates AG-01 and AG-02. Adding them before approval would
-// harden an unapproved assumption into the codebase.
+// Database, identity/session, tenancy, audit and SaaS adapters are implemented
+// and tested below the HTTP layer. D-001, D-002 and D-003 were approved on
+// 2026-11-03 (ADR-0012 to ADR-0014) and architecture gates AG-01 and AG-02
+// passed. They are deliberately not registered here: composing the
+// authentication and tenant-context pipeline is remediation task T-06
+// (readiness gap C-02). No database connection, tenant context, module,
+// background worker or business endpoint is wired into this host.
 // ---------------------------------------------------------------------------
 
 builder.Services.AddProblemDetails();
