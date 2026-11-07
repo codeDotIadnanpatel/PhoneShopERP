@@ -52,6 +52,28 @@ This is a planning baseline. Planned test names are not evidence that tests exis
 | Full record | `docs/13-audit-remediation/PHASE_01_STAGE_5_T02_COMPLETION_REPORT.md`. |
 | Reviewer / date | Pending independent review; 2026-11-06. |
 
+## Stage 5 T-03 evidence — actual platform-admin role verification (D-04)
+
+**Status:** Closed by test correction. Production role definitions, grants, policies and attributes were already correct; the previous test used a superuser substitute. No production code or migration changed.
+
+| Evidence field | Value |
+|---|---|
+| Finding | Stage 4 D-04: `PlatformAdminBypassesRls_ButTheRuntimeRoleNeverDoes` read as `postgres`, proving trivial superuser bypass rather than the documented `erp_platform_admin` path. |
+| Implementation commit | `251cc6a668791542c82a59711a30a810f1724147` |
+| Tests | `backend/tests/PhoneShopErp.Database.Tests/RoleAndGrantTests.cs` — `PlatformAdminConnection_IsTheActualNonSuperuserBypassRole`, `RoleMembershipGraph_ContainsOnlyTheDocumentedMigrationEdges`, `MigrationCredential_DoesNotPassivelyInheritThePlatformAdminRlsBypass`, `PlatformAdminSeesEveryTenant_WhileTheRuntimeRoleSeesNone`, `PlatformAdminReadsAuditRowsAcrossTenants_WhileTheRuntimeRoleIsConfined`, `PlatformAdminCanExecuteTheMigrationOnlyTenantEnumeration`, `PlatformAdminHasNoTenantWriteOrDdlAuthority`, `PlatformAdminReadsSecurityEventsTheRuntimeRoleMayOnlyAppend`. |
+| Effective identity | The tests connect as `erp_platform_admin` (passwordless role connection) and assert `session_user = current_user = erp_platform_admin`, `rolsuper = false`, `rolbypassrls = true`, `rolcanlogin = true`. |
+| Role contract | `erp_owner` NOLOGIN; `erp_migrator` LOGIN and `SET role = erp_owner`; `erp_app` LOGIN with no memberships; `erp_platform_admin` LOGIN, NOSUPERUSER, NOCREATEDB, NOCREATEROLE, BYPASSRLS. Platform admin holds `SELECT` on tenant/identity/platform/SaaS tables, `INSERT, SELECT` on `platform.security_event`, `EXECUTE` on context helpers and ownership of `platform.tenant_ids()`; no tenant write or DDL grants. |
+| Membership graph | Exactly two edges, both `ADMIN FALSE`, `INHERIT FALSE`, `SET TRUE`: `erp_migrator -> erp_owner` and `erp_owner -> erp_platform_admin`. `erp_app` is a member of nothing; `erp_platform_admin` is a member of nothing. The second edge exists only for the `platform.tenant_ids()` ownership transfer, so the migration credential can `SET ROLE` to platform admin but never inherits `BYPASSRLS`. |
+| RLS comparison | Same seeded rows: `erp_app` with no context sees 0 `tenancy.tenant` rows and 0 foreign-tenant audit rows; `erp_platform_admin` with no context sees both tenants and both tenants' audit rows; `erp_app` in tenant context sees exactly its own tenant's audit rows. No policy changed. |
+| Administrative surface | `platform.tenant_ids()` returns every tenant id for platform admin and is `42501` for `erp_app`; `platform.security_event` is readable and appendable by platform admin, append-only-write-only for `erp_app`, and `UPDATE` is denied for platform admin. |
+| Negative boundary | `erp_app` cannot `SET ROLE` either role (`42501`); no membership or `pg_has_role` path exists; platform admin cannot `UPDATE`/`DELETE` tenant rows, `UPDATE identity.user`, `INSERT` audit events or `CREATE SCHEMA` (`42501`). |
+| Mutation evidence | Temporarily removing `BYPASSRLS` failed 3 tests; temporarily granting `erp_platform_admin` to `erp_app` failed the graph test. Both were restored and re-verified; no harness remains. |
+| Regression evidence | 237 passed, 0 failed, 0 skipped (Architecture 5, API 2, Platform 111, Database 119); focused `RoleAndGrantTests` 18 passed; skip guard verified 237 executed TRX results across 4 files. |
+| Relevant slices | FS-002 (server-side permission resolution and privilege escalation) and FS-003 (RLS defense in depth). |
+| Known limitations | No platform-administration API/write workflow exists (C-02); `BYPASSRLS` is controlled by credential custody; the documented migration `SET` chain remains a migration-only trust boundary. |
+| Full record | `docs/13-audit-remediation/PHASE_01_STAGE_5_T03_COMPLETION_REPORT.md`. |
+| Reviewer / date | Pending independent review; 2026-11-07. |
+
 ## Evidence fields to add during implementation
 
 For every row, record:
