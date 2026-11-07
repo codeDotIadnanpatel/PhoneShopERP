@@ -74,6 +74,26 @@ This is a planning baseline. Planned test names are not evidence that tests exis
 | Full record | `docs/13-audit-remediation/PHASE_01_STAGE_5_T03_COMPLETION_REPORT.md`. |
 | Reviewer / date | Pending independent review; 2026-11-07. |
 
+## Stage 5 T-04 evidence - central audit detail redaction (D-02)
+
+**Status:** Closed. Audit and security-event `Detail` JSON is now redacted at the persistence boundary; no schema, migration, grant, RLS policy or append-only protection changed.
+
+| Evidence field | Value |
+|---|---|
+| Finding | Stage 4 D-02: the audit store serialised caller-supplied `Detail` verbatim while its documentation claimed the caller had already redacted it. |
+| Implementation commit | `87597fb23533af9301e70d8ad6b5880968e4ce0d` |
+| Control point | `PostgresAuditStore.AppendAsync` and `PostgresAuditStore.AppendSecurityEventAsync` call `SensitiveDataRedactor.RedactJson(Detail.RootElement)` before binding the `jsonb` parameter. Both append paths are covered, so an alternate caller cannot bypass the control. |
+| Redaction rules | Case-insensitive exact/substring matching on property names at any depth, including arrays and JSON encoded inside string values. Passwords, access/refresh/id/session tokens, authorization headers, cookies/secrets, API keys, connection strings, private keys, device passcodes/PINs and card data become `[REDACTED]`. Safe siblings, nulls and empty values survive; malformed embedded JSON is preserved rather than dropping the event. |
+| Tests | `backend/tests/PhoneShopErp.Platform.Tests/SensitiveDataRedactorTests.cs` (credential-name coverage, casing, nesting, arrays, JSON-in-string, malformed input, safe names); `backend/tests/PhoneShopErp.Database.Tests/AuditRedactionTests.cs` (real store persistence for audit and security events, attribution/safe metadata preserved, malformed detail, 8 KiB bound). |
+| Persistence proof | Persisted `detail::text` read back as `erp_platform_admin` contains none of the supplied secret literals; `[REDACTED]` is present for each sensitive key; action/outcome/actor/tenant/target/correlation/reason columns are unchanged. |
+| Size bound | An 8,000-character benign detail commits; a 9,000-character detail is still rejected by `ck_audit_event_detail_size` (SQLSTATE `23514`), proving redaction did not weaken the schema bound. |
+| Regression evidence | 258 passed, 0 failed, 0 skipped (Architecture 5, API 2, Platform 128, Database 123); focused redactor tests 40 passed; focused `AuditRedactionTests` 4 passed; skip guard verified 258 executed TRX results across 4 files. Release build 0 warnings, 0 errors. |
+| Unchanged protections | No migration; append-only triggers, forced RLS, grants, roles and role attributes unchanged; no `SECURITY DEFINER` function; event/actor/tenant semantics unchanged. |
+| Relevant slices | FS-002 (server-side authorization evidence) and FS-003 (RLS/defence-in-depth audit handling). |
+| Known limitations | Name-based redaction cannot detect a secret pasted into a benign free-text/string value; `Reason` and `ActorReference` are not content scanned; no production `AppendSecurityEventAsync` caller yet; R-01 remains an accepted Stage 4 risk. |
+| Full record | `docs/13-audit-remediation/PHASE_01_STAGE_5_T04_COMPLETION_REPORT.md`. |
+| Reviewer / date | Pending independent review; 2026-11-07. |
+
 ## Evidence fields to add during implementation
 
 For every row, record:
