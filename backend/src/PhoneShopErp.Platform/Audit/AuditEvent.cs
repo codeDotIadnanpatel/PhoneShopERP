@@ -43,8 +43,10 @@ public static class AuditOutcomes
 }
 
 /// <summary>
-/// A tenant-scoped audit record. <see cref="Detail"/> is already redacted by the
-/// caller; the store does not attempt to guess what is sensitive.
+/// A tenant-scoped audit record. <see cref="Detail"/> is redacted again by
+/// <c>PostgresAuditStore</c> before insert, so a caller defect cannot persist a
+/// recognised credential field. Callers should still pass only reviewed,
+/// structured metadata.
 /// </summary>
 public sealed record AuditEvent(
     Guid Id,
@@ -63,7 +65,8 @@ public sealed record AuditEvent(
 /// <summary>
 /// A pre-tenant or platform security event. It deliberately has no tenant
 /// business payload: an unknown account, a provider outage or a rejected token
-/// must not leak tenant data into a platform-only table.
+/// must not leak tenant data into a platform-only table. <see cref="Detail"/> is
+/// redacted again by <c>PostgresAuditStore</c> before insert.
 /// </summary>
 public sealed record SecurityEvent(
     Guid Id,

@@ -21,7 +21,10 @@ public static class SensitiveDataRedactor
         "cvc",
         "id_token",
         "passcode",
+        "passwd",
         "password",
+        "pin",
+        "pwd",
         "refresh_token",
         "secret",
         "session_token",
@@ -42,6 +45,13 @@ public static class SensitiveDataRedactor
         "credential",
         "authorization",
         "cookie",
+        "api_key",
+        "api-key",
+        "apikey",
+        "connection_string",
+        "connectionstring",
+        "private_key",
+        "privatekey",
     ];
 
     public static bool IsSensitive(string name)
@@ -71,10 +81,20 @@ public static class SensitiveDataRedactor
     public static string RedactJson(string json)
     {
         using var document = JsonDocument.Parse(json);
+        return RedactJson(document.RootElement);
+    }
+
+    /// <summary>
+    /// Serialises a redacted copy of an already parsed JSON value. Audit detail
+    /// is stored as <see cref="JsonDocument"/>, so this overload is the normal
+    /// persistence path; parsing never happens twice.
+    /// </summary>
+    public static string RedactJson(JsonElement element)
+    {
         using var buffer = new MemoryStream();
         using (var writer = new Utf8JsonWriter(buffer))
         {
-            WriteRedacted(document.RootElement, writer);
+            WriteRedacted(element, writer);
         }
 
         return System.Text.Encoding.UTF8.GetString(buffer.ToArray());
@@ -107,22 +127,8 @@ public static class SensitiveDataRedactor
         return value;
     }
 
-    private static string RedactJsonString(string text)
-    {
-        if (!text.TrimStart().StartsWith('{') && !text.TrimStart().StartsWith('['))
-        {
-            return text;
-        }
-
-        try
-        {
-            return RedactJson(text);
-        }
-        catch (JsonException)
-        {
-            return text;
-        }
-    }
+    private static string RedactJsonString(string text) =>
+        TryRedactEmbeddedJson(text, out var redacted) ? redacted : text;
 
     private static void WriteRedacted(JsonElement element, Utf8JsonWriter writer)
     {
@@ -156,9 +162,43 @@ public static class SensitiveDataRedactor
                 writer.WriteEndArray();
                 break;
 
+            case JsonValueKind.String:
+                // A string value can itself contain an encoded JSON document.
+                // Redact it too, otherwise a caller that stores a provider
+                // response or a serialised payload as a string would bypass the
+                // key-name check one level down.
+                var text = element.GetString()!;
+                writer.WriteStringValue(
+                    TryRedactEmbeddedJson(text, out var redacted) ? redacted : text);
+                break;
+
             default:
                 element.WriteTo(writer);
                 break;
+        }
+    }
+
+    private static bool TryRedactEmbeddedJson(string text, out string redacted)
+    {
+        var trimmed = text.AsSpan().TrimStart();
+        if (trimmed.IsEmpty || (trimmed[0] != '{' && trimmed[0] != '['))
+        {
+            redacted = text;
+            return false;
+        }
+
+        try
+        {
+            redacted = RedactJson(text);
+            return true;
+        }
+        catch (JsonException)
+        {
+            // Malformed metadata is preserved rather than failing or silently
+            // dropping the audit event. It cannot contain a parsed credential
+            // field, so there is nothing deterministic to redact.
+            redacted = text;
+            return false;
         }
     }
 }

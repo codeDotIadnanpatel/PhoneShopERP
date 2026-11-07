@@ -1,6 +1,7 @@
 using Npgsql;
 using NpgsqlTypes;
 using PhoneShopErp.Platform.Audit;
+using PhoneShopErp.Platform.Security;
 
 namespace PhoneShopErp.Persistence;
 
@@ -15,9 +16,10 @@ public interface IAuditStore
 }
 
 /// <summary>
-/// Writes audit and security events inside the caller's transaction. The caller
-/// has already redacted <c>Detail</c>; this store never accepts free-form
-/// credential material.
+/// Writes audit and security events inside the caller's transaction. Both
+/// <c>Detail</c> payloads are redacted here, at the persistence boundary, so an
+/// alternate caller cannot bypass the control. Callers should still avoid
+/// collecting credential material in the first place.
 /// </summary>
 public sealed class PostgresAuditStore : IAuditStore
 {
@@ -54,7 +56,7 @@ public sealed class PostgresAuditStore : IAuditStore
         var detail = command.Parameters.Add("detail", NpgsqlDbType.Jsonb);
         detail.Value = auditEvent.Detail is null
             ? DBNull.Value
-            : System.Text.Json.JsonSerializer.Serialize(auditEvent.Detail.RootElement);
+            : SensitiveDataRedactor.RedactJson(auditEvent.Detail.RootElement);
 
         _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -88,7 +90,7 @@ public sealed class PostgresAuditStore : IAuditStore
         var detail = command.Parameters.Add("detail", NpgsqlDbType.Jsonb);
         detail.Value = securityEvent.Detail is null
             ? DBNull.Value
-            : System.Text.Json.JsonSerializer.Serialize(securityEvent.Detail.RootElement);
+            : SensitiveDataRedactor.RedactJson(securityEvent.Detail.RootElement);
 
         _ = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
